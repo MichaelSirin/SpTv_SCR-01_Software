@@ -1,0 +1,212 @@
+//--------------------------------------------------------------------------------------
+// Функции для работы с FLASH
+
+#include "monitor.h"
+
+#if (defined _CHIP_ATMEGA128L_) || (defined _CHIP_ATMEGA128_)
+	#asm
+		.equ	SPMCSR = 0x68
+		.equ	SPMREG = SPMCSR
+	#endasm
+#elif (defined _CHIP_ATMEGA8_) || (defined _CHIP_ATMEGA8L_) || (defined _CHIP_ATMEGA8515_) || (defined _CHIP_ATMEGA8515L_) || (defined _CHIP_ATMEGA162_) || (defined _CHIP_ATMEGA162L_)
+	#asm
+		.equ	SPMCR  = 0x37
+		.equ	SPMREG = SPMCR
+	#endasm
+#else
+	#error Поддержка для этого процессора еще не написана
+#endif
+
+#asm
+	.equ	SPMEN  = 0	; Биты регистра
+	.equ	PGERS  = 1
+	.equ	PGWRT  = 2
+	.equ	BLBSET = 3
+	.equ	RWWSRE = 4
+	.equ	RWWSB  = 6
+	.equ	SPMIE  = 7
+
+	;--------------------------------------------------
+	; Ожидание завершения SPM. Портит R23
+	spmWait:
+#endasm
+#ifdef USE_MEM_SPM
+	#asm
+		lds		r23, SPMREG
+	#endasm
+#else
+	#asm
+		in		r23, SPMREG
+	#endasm
+#endif
+#asm
+		andi	r23, (1 << SPMEN)
+		brne	spmWait	
+		ret
+
+	;--------------------------------------------------
+	; Запуск SPM.
+	spmSPM:
+		in		r24, SREG	; Сохраняю состояние
+		cli					; Запрещаю прерывания
+#endasm
+#ifdef USE_RAMPZ
+	#asm
+		in		r25, RAMPZ	; Сохраняю RAMPZ
+	#endasm
+#endif
+#asm
+		ld		r30, y		; Адрес
+		ldd		r31, y+1
+#endasm
+#ifdef USE_RAMPZ
+	#asm
+		ldd		r26, y+2	; 3-й байт адреса - в RAMPZ
+		out		RAMPZ, r26
+	#endasm
+#endif
+#asm
+		rcall	spmWait		; Жду завершения предидущей операции (на всякий случай)
+#endasm
+#ifdef USE_MEM_SPM
+	#asm
+		sts SPMREG, r22		; Регистр команд, как память
+	#endasm
+#else
+	#asm
+		out SPMREG, r22		; Регистр команд, как порт
+	#endasm
+#endif
+#asm
+		spm					; Запуск на выполнение
+
+		nop
+		nop
+		nop
+		nop
+
+		rcall	spmWait		; Жду завершения
+#endasm
+#ifdef USE_RAMPZ
+	#asm
+		out		RAMPZ, r25	; Восстанавливаю состояние
+	#endasm
+#endif
+#asm
+		out		SREG, r24
+		ret
+#endasm
+
+#pragma warn-
+void ResetTempBuffer (FADDRTYPE addr)
+{
+	#asm
+		ldi		r22, (1 << RWWSRE) | (1 << SPMEN)
+		rcall	spmSPM
+	#endasm
+}
+
+void FillTempBuffer (unsigned short data, FADDRTYPE addr)
+{
+	#ifdef USE_RAMPZ
+		#asm
+			ldd		r0, y+4			; Данные
+			ldd		r1,	y+5
+		#endasm
+	#else
+		#asm
+			ldd		r0, y+2			; Данные
+			ldd		r1,	y+3
+		#endasm
+	#endif
+	#asm
+		ldi		r22, (1 << SPMEN)	; Команда
+
+		rcall	spmSPM				; На выполнение
+	#endasm
+}
+
+void PageErase (FADDRTYPE  addr)
+{
+	#asm
+		ldi		r22, (1 << PGERS) | (1 << SPMEN)
+		rcall	spmSPM
+	#endasm
+}
+
+void PageWrite (FADDRTYPE addr)
+{
+	#asm
+		ldi		r22, (1 << PGWRT) | (1 << SPMEN)
+		rcall	spmSPM
+	#endasm
+}
+#pragma warn+
+
+void PageAccess (void)
+{
+	#asm
+		ldi		r22, (1 << RWWSRE) | (1 << SPMEN)
+		rcall	spmSPM
+	#endasm
+}
+
+// Запись страницы FLASH
+void WriteFlash(void)
+{
+	unsigned char a=0;
+//	int temp;
+	FADDRTYPE faddr;
+	
+	// Получаю номер страницы
+	#asm ("wdr");
+	faddr = GetWordBuff(a);
+	a+=2;							// вычитали 2 байта
+	
+	if (faddr >= PRGPAGES)
+	{
+		while(1);	// Если неправильный номер страницы - непоправимая ошибка и вылет по вотчдогу
+	}	            
+	
+
+	// Получаю адрес начала страницы
+	faddr <<= (ZPAGEMSB + 1);
+	
+	// Загрузка данных в промежуточный буфер
+	#asm ("wdr");
+	ResetTempBuffer(faddr);
+	do{
+			FillTempBuffer(GetWordBuff(a), faddr);			// 
+			a+=2;
+			faddr += 2;
+    	}while (faddr & (PAGESIZ-1)) ;	
+
+		// Сигналю, что все в порядке и можно посылать следующий
+		#asm ("wdr");
+		txBuffer[0] = 1;                   		// длина
+		txBuffer[1] = RES_OK;
+		dannForTX = 1;							// есть данные	
+
+	// Восстанавливаю адрес начала страницы
+	faddr -= PAGESIZ;
+
+	// Стираю страницу
+	#asm ("wdr");
+	PageErase(faddr);
+	
+	// Записываю страницу
+	#asm ("wdr");
+	PageWrite(faddr);
+
+	// Разрешить адресацию области RWW
+	#asm ("wdr");
+	PageAccess();
+
+/*	// Сигналю, что все в порядке и можно посылать следующий
+	#asm ("wdr");
+		txBuffer[0] = 1;                   		// длина
+		txBuffer[1] = RES_OK;
+		dannForTX = 1;							// есть данные	*/
+
+}
+ 

@@ -1,0 +1,16 @@
+Creating   'fulldemo.eep'
+Creating   'fulldemo.obj'
+Creating   'fulldemo.lst'
+
+Assembling 'fulldemo.asm'
+Including  'fulldemo.vec'
+Including  'fulldemo.inc'
+
+Program memory usage:
+Code             :  15227 words
+Constants (dw/db):   1465 words
+Unused           :      0 words
+Total            :  16692 words
+
+Assembly complete with no errors.
+Deleting   'fulldemo.eep'

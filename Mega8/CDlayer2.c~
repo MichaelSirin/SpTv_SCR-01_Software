@@ -1,0 +1,139 @@
+#include "CDdef.h"
+
+
+// ----------------------- Обработка прерывания таймера 0 (тайм-аут RS232) --------
+// Timer 0 overflow interrupt service routine
+interrupt [TIM0_OVF] void timer0_ovf_isr(void)
+{
+	TCCR0=0x00;										// Останавливаем таймер
+	time_is_Out =1;		// взводим признак окончания таймаута
+}
+//--------------------------------------------------------------------------------------
+
+// Посылаем запрос адреса устройства
+ void give_GETINFO (void)
+{
+	// 	запрос  типа устройства
+			putchar ('q');						// заголовок
+			putchar (3);							// число байт после этого
+			putchar (255);		 				//  адрес (циркулярный)
+			putchar (PT_GETINFO);		// тип пакета
+			putchar ((PT_GETINFO)+(255)+3+('q'));
+			
+			CountUART = 0;				// ожидаем ответный пакет
+}
+
+// ----------------------- Обработка прерывания таймера 1 ( опрос подключения каждые 8 с) --------
+// Timer 1 overflow interrupt service routine
+interrupt [TIM1_OVF] void timer1_ovf_isr(void)
+{
+		if (! (Device_Connected) )	lAddr = 0;						// ничего не подключено             
+
+		_GetLogAddr ();				// cообщаем свой логический адрес
+
+		Device_Connected = 0;						// пора проверить устройство присутствует ли ?           
+
+		LedOn ();             
+		give_GETINFO();		// отправляем посылку запроса
+
+}
+
+// отправляем ответ на GEN CALL
+void	Responce_OK (unsigned char Status)
+{    
+
+		txBufferTWI[Start_Position_for_Reply] = 2;				 		// длина пакета
+		txBufferTWI[Start_Position_for_Reply+1] = Responce_GEN_CALL;		 		// тип ответного пакета
+
+	// ответ не пришел
+	if ( Status == FALSE )
+	{
+		Packet_Lost ++;								// потеряли пакет
+		txBufferTWI[Start_Position_for_Reply+2] = FALSE;		  				// содержимое
+	}
+	// ответ пришел
+	else
+		txBufferTWI[Start_Position_for_Reply+2] = rxBufferUART[1];		// содержимое
+
+		packPacket (Internal_Packet);	// даем тип ВНУТРЕННИЙ
+}
+
+// Ждем ответа при глоб. адресации. Работает с таймером 2.
+void Wait_Responce ( unsigned char Status )
+{
+			testpin = ~ testpin;
+
+			Count_For_Timer2 = 0;                                  
+
+			TCNT2=0x00;			
+			if ( Status == START_Timer )
+			{
+			 	Responce_Time_Out = 0;								
+			 	TCCR2=0x07;       // пуск
+			}
+			else 		
+				TCCR2=0x00;       // стоп
+
+}
+// ----------------------- Обработка прерывания таймера 2 ------------------------
+// Ждем подтверждение передачи пакета кодирования ( ожидание ответа устройства - 200мс)
+// Timer 2 overflow interrupt service routine
+interrupt [TIM2_OVF] void timer2_ovf_isr(void)
+{
+		Count_For_Timer2 ++;
+
+		if (Count_For_Timer2 > 4 )
+		{
+			Responce_Time_Out = 1;				// время ожидания ответного пакета истекло
+			Wait_Responce ( STOP_Timer );				// стоп
+		}                                   
+}
+
+
+//--------------------------------------------------------------------------------------------
+// "программный" UART
+#ifdef DEBUG
+void dtxdl(void)
+{
+	int i;
+	for (i = 0; i < 17; i ++)
+	{
+		#asm("nop")
+	}
+}
+
+void putchar2(char c)
+{
+	register unsigned char b;
+	
+	#asm("cli")
+	
+	DTXDDR = 1;
+//	DRXDDR = 0;
+	DTXPIN = 0;
+	dtxdl();
+	
+	for (b = 0; b < 8; b ++)
+	{
+		if (c & 1)
+		{
+			DTXPIN = 1;
+		}
+		else
+		{
+			DTXPIN = 0;
+		}
+             
+		c >>= 1;
+		dtxdl();
+	}
+
+	DTXPIN = 1;
+	dtxdl();
+	dtxdl();
+	
+	#asm("sei")
+}
+#endif DEBUG
+		
+

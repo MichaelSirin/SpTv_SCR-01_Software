@@ -1,0 +1,15 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: c:\users\michael\c_cvision\codingdevice\mega128\i2c_mega128.c
+Global variables memory map:
+
+Variable                          Address   Size
+rx_buffer0                                                            500h    256
+rx_wr_index0                                                         R4,R5      2
+rx_rd_index0                                                         R6,R7      2
+rx_counter0                                                          R8,R9      2
+rx_buffer_overflow0                                                   R2.0    1/8
+rx_USART_packet                                                       R2.1    1/8
+rx_USART_starting                                                     R2.2    1/8

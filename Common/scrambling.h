@@ -1,0 +1,50 @@
+
+//#define TWI_Buffer_TX				120			// Ѕуфер на прием UART/ передача TWI    
+
+#define from_TWI		0x0						// порт TWI
+#define from_UART	0x1						// порт UART 
+#define START_Timer  1						// таймер 200мс
+#define STOP_Timer    0   
+
+ #define Start_Position_for_Reply	2		// стартова€ позици€ дл€ ответного пакета
+#define Long_TX_Packet_TWI  	txBufferTWI[Start_Position_for_Reply]  // длина передаваемого пакета
+#define Command_TX_Packet_TWI 	txBufferTWI[Start_Position_for_Reply+1]   // тип передаваемого пакета (команда)
+#define CRC_TX_Packet_TWI   			txBufferTWI[Start_Position_for_Reply+Long_TX_Packet_TWI]	// —RC передаваемого пакета 
+
+
+#define TWI_RX_Command 	 	rxBufferTWI[0]  // команда TWI
+#define Heading_RX_Packet  	rxBufferTWI[1]  // заголовок пакета
+#define Long_RX_Packet_TWI  	rxBufferTWI[2]  // длина прин€того пакета
+#define Recived_Address 			rxBufferTWI[3]  // адрес в прин€том пакете
+#define Type_RX_Packet_TWI 	rxBufferTWI[4]  // тип прин€того пакета 
+#define PT_GETSTATE_page		rxBufferTWI[5]	// номер страницы в пакете GETSTATE	
+#define CRC_RX_Packet_TWI   rxBufferTWI[ rxBufferTWI[2]+2]	// CRC прин€того пакета
+
+// “ипы пакетов, используемых в CD
+
+#define GetLogAddr					1		// дать логический адрес 
+//#define pingPack						2		// нас пингуют на наличие информации на передачу
+#define Responce_GEN_CALL	3		// ответ на GEN CALL   
+#define Responce_GEN_CALL_internal	4	// ответы дл€ внутр. скремблера
+
+#define Internal_Packet		0x00			// пакеты внутреннего пользовани€
+#define External_Packet 	0x01			// пакеты ретранслируемые
+#define Global_Packet		0xFF			// глобальный пакет
+
+	
+//  оманды, передаваемые по TWI
+#define TWI_CMD_MASTER_WRITE 					0x10
+#define TWI_CMD_MASTER_READ  						0x20      
+#define TWI_CMD_MASTER_RECIVE_PACK_OK 	0x21
+#define TWI_CMD_MASTER_REQUEST_CRC 		0x22       
+
+// ‘ункции
+unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg );
+void run_TWI_slave ( void ); 
+unsigned char calc_CRC (unsigned char *Position_in_Packet); // —читаем CRC передаваемого пакета
+void packPacket (unsigned char type);
+
+
+
+
+

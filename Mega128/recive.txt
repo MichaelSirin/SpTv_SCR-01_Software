@@ -1,0 +1,22 @@
+Start program 
+Ini CF - OK! 
+File OPEN read 
+Generation g_p_koderu... 
+Generation g_p_flagov... 
+N_sec=122 ...
+
+-------------------------Generation g_p_ciklovogo...-------------------- 
+kolvo_stvolov=01 
+kolvo_abonentov=03
+Generation g_p_razresh... 
+Generation g_p_razresh... 
+Generation g_p_razresh... 
+
+-------------------------Generation g_p_ciklovogo...-------------------- 
+kolvo_stvolov=01 
+kolvo_abonentov=03
+Generation g_p_razresh... 
+Generation g_p_kluch...
+ 55 a6 55 55  0 55 55  2 45 cc 98  6 42 31 62 2a Generation g_p_razresh... 
+Generation g_p_razresh... 
+

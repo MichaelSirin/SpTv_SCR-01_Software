@@ -1,0 +1,142 @@
+#ifndef _MONITOR_H_
+#define _MONITOR_H_
+
+// В зависимости от компилятора
+#if defined __CODEVISIONAVR__
+// В зависимости от типа процессора
+#if (defined _CHIP_ATMEGA128_) || (defined _CHIP_ATMEGA128L_)
+	#include <mega128.h>
+
+	#define ZPAGEMSB	7				// Номер старшего бита адреса внутри страницы
+	#define FLASHSIZ	(128*1024)		// Размер FLASH в байтах
+	#define EEPROMSIZ	4096			// Размер EEPROM в байтах
+
+    #define IVCREG MCUCR
+	#define IVCE   0
+	#define IVSEL  1
+	
+	#define WDRF   3
+	
+	#define FADDRTYPE unsigned long	// Тип переменной для адресации всего FLASH
+	#define USE_RAMPZ
+	#define USE_MEM_SPM
+
+	#define ReplyXmitterEnable()  UCSR0B.3=1	// Разрешаю передатчик
+	#define ReplyXmitterDisable() UCSR0B.3=0	// Запрещаю передатчик
+
+#elif (defined _CHIP_ATMEGA8_) || (defined _CHIP_ATMEGA8L_)
+	#include <mega8.h>
+
+	#define ZPAGEMSB	5				// Номер старшего бита адреса внутри страницы
+	#define FLASHSIZ	8192			// Размер FLASH в байтах
+	#define EEPROMSIZ	512				// Размер EEPROM в байтах
+
+    #define IVCREG GICR
+	#define IVCE   0
+	#define IVSEL  1
+	
+	#define WDRF   3
+
+	#define FADDRTYPE unsigned short		// Тип переменной для адресации всего FLASH
+//	#define USE_RAMPZ
+//	#define USE_MEM_SPM
+
+	#define ReplyXmitterEnable()  UCSRB.3=1	// Разрешаю передатчик
+	#define ReplyXmitterDisable() UCSRB.3=0	// Запрещаю передатчик
+
+#elif (defined _CHIP_ATMEGA8515_) || (defined _CHIP_ATMEGA8515L_)
+	#include <mega8515.h>
+
+	#define ZPAGEMSB	5					// Номер старшего бита адреса внутри страницы
+	#define FLASHSIZ	8192				// Размер FLASH в байтах
+	#define EEPROMSIZ	512					// Размер EEPROM в байтах
+
+    #define IVCREG GICR
+	#define IVCE   0
+	#define IVSEL  1
+	
+	#define WDRF   3
+
+	#define FADDRTYPE unsigned short		// Тип переменной для адресации всего FLASH
+//	#define USE_RAMPZ
+//	#define USE_MEM_SPM
+
+	#define ReplyXmitterEnable()  UCSRB.3=1	// Разрешаю передатчик
+	#define ReplyXmitterDisable() UCSRB.3=0	// Запрещаю передатчик
+
+#elif (defined _CHIP_ATMEGA162_) || (defined _CHIP_ATMEGA162L_)
+	#include <mega162.h>
+
+	#define ZPAGEMSB	6					// Номер старшего бита адреса внутри страницы
+	#define FLASHSIZ	16384				// Размер FLASH в байтах
+	#define EEPROMSIZ	512					// Размер EEPROM в байтах
+
+    #define IVCREG GICR
+	#define IVCE   0
+	#define IVSEL  1
+	
+	#define WDRF   3
+
+	#define FADDRTYPE unsigned short		// Тип переменной для адресации всего FLASH
+//	#define USE_RAMPZ
+//	#define USE_MEM_SPM
+
+	#define ReplyXmitterEnable()  UCSR0B.3=1	// Разрешаю передатчик
+	#define ReplyXmitterDisable() UCSR0B.3=0	// Запрещаю передатчик
+	
+	#define UCSRA UCSR0A
+	#define UCSRB UCSR0B
+	#define UCSRC UCSR0C
+	#define UBRRL UBRR0L
+	#define UBRRH UBRR0H
+	#define UDR UDR0
+#else
+	#error Поддержка для этого процессора еще не написана
+#endif
+
+#define PAGESIZ (1 << (ZPAGEMSB+1))	// Размер страницы FLASH в байтах
+
+#ifndef MONSIZ
+	#error Необходимо задать размер монитора в байтах в Project->Configure->C Compiler->Globally define
+#endif
+#endif //__CODEVISIONAVR__
+
+#define PAGES (FLASHSIZ/PAGESIZ)	// Общее число страниц FLASH
+#define MONPAGES (MONSIZ/PAGESIZ)	// Число страниц FLASH, занятых монитором
+#define PRGPAGES (PAGES - MONPAGES)	// Число страниц FLASH, доступных для программирования
+
+// Формат и коды команд связи с хостом
+#include <comm.h>
+
+#define MONITORVERSION 0x0100
+
+// Прототипы функций и переменных
+void WriteFlash(void);
+unsigned char PackOk(void);
+void ReplyStart(unsigned char bytes);
+void PutWord(unsigned short w);
+unsigned short GetWord(void);
+void ReplyEnd(void);
+extern bit prgmode;
+unsigned char GetByte(void);
+void PutByte(unsigned char byt);
+unsigned char Wait4Hdr(void);
+extern unsigned char nbyts;
+extern unsigned char plen;
+void HardwareInit(void);
+//void XmitChar(unsigned char byt);
+//unsigned char ReceiveChar(void);
+//unsigned char HaveRxChar(void);
+extern bit descramble;
+#define DescrambleStart() {descramble=1;}
+#define DescrambleStop() {descramble=0;}
+unsigned char NextSeqByte(void);
+void ResetDescrambling(void);
+extern const unsigned int scrambling_seed;    
+void putchar2(char c);
+
+#if (defined DEBUG_LED)
+	void Dlc(void);
+#endif
+
+#endif // _MONITOR_H_

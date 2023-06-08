@@ -1,0 +1,452 @@
+;////////////////////////////////////////////////////////////////////////////
+;// секция формирования пакета закрытия
+;
+;#include "Coding.h"
+;PCODE: $00000000 VOL: 0
+	#ifndef __SLEEP_DEFINED__
+;PCODE: $00000001 VOL: 0
+	#define __SLEEP_DEFINED__
+;PCODE: $00000002 VOL: 0
+	.EQU __se_bit=0x20
+;PCODE: $00000003 VOL: 0
+	.EQU __sm_mask=0x1C
+;PCODE: $00000004 VOL: 0
+	.EQU __sm_powerdown=0x10
+;PCODE: $00000005 VOL: 0
+	.EQU __sm_powersave=0x18
+;PCODE: $00000006 VOL: 0
+	.EQU __sm_standby=0x14
+;PCODE: $00000007 VOL: 0
+	.EQU __sm_ext_standby=0x1C
+;PCODE: $00000008 VOL: 0
+	.EQU __sm_adc_noise_red=0x08
+;PCODE: $00000009 VOL: 0
+	.SET power_ctrl_reg=mcucr
+;PCODE: $0000000A VOL: 0
+	#endif
+;PCODE: $0000000B VOL: 0
+;PCODE: $0000000C VOL: 0
+;
+;#define koef_pd_kl 		0x7//3//1//3
+;#define Koef_men_kl 	0x7f//07//03//7
+;#define  kolvo_ciklov		0x04			// цикличность передачи циклового пакета
+;//#define Koef_men_kl 0x7f
+;//#define Koef_pd_soft 0x1	//max skorost if 01
+;
+;
+;
+;u8 kluchi_koderu[8] = {0x2,0x45,0x1,0x89,0x6,0x42,0x5,0xf6};//wyh буффер na kluchi
+
+	.DSEG
+;u8 kluchi_dekoderu[16];//wyh буффер na kluchi
+;
+;u16 gshch1 	=	0xCD;	//shumovoe chislo-jachejka генераторa случайных чисел 1	kluch1  confkluch1;
+;u16 gshch2	=	0xAE;	//jachejka генераторa случайных чисел 2	kluch2	confkluch2;
+;u16 gshch3	=	0xBA;	//jachejka генераторa случайных чисел 3 for kazakov
+;u16 gshch4	=	0x35;		//jachejka генераторa случайных чисел 4 dlja maskirovki
+;u16 gshch5	=	0x43;		//jachejka генераторa случайных чисел 5 dlja maskirovki
+;u16 gshch6;					//декодирование файла mask.chm
+;u16 gshch7	=	0x166;	//генерация ключа
+;
+;
+;int confkluch1 = 0xb2;;		//konfiguracija gen klucha1
+;int confkluch2 = 0xa6;		//konfiguracija gen klucha2
+;int krutnut		=	0x7;
+;int ver_kl		=	0x7d;
+;
+;u8	komu;	//=0x25-paket koderu,0x26-paket v liniju
+;u8 schetchic_paketov_zakrytija = 0;//для 4-го байта пакета
+;int kolvo_abonentov		=0;
+;u8 kolvo_stvolov	=	0;
+;
+;u8 scrambCond = TX_g_p_koderu;		// текущее состояние скремблера
+;
+;u8 N_sektora		=	122;//pri programirovanii
+;u8 ver_zeleza	=	0;
+;u8 flag_est_obnovlenie_flash	=	1;
+;u8 flag_est_obnovlenie_eeprom;
+;int l_flash;							//длина флеша для прог.
+;//u8 tip;
+;u8 pozklucha;
+;int count_paket	=	0;// счетчик пакетов для организации циклов передачи спец.пакетов
+;u16 schetchic_abonentov;
+;#define time_OFF_scremb 2000000		//таймаут между принятым по UART пакету и работой внутр скремблера
+;
+;
+;// При работе с COM портом не работает скремблер
+;void	scrambOff (void)
+; 0006 0034 {
+
+	.CSEG
+;PCODE: $0000000D VOL: 0
+;PCODE: $0000000E VOL: 0
+; 0006 0035 		EndTimePack = 0;		// сброс признака
+;PCODE: $0000000F VOL: 0
+; 0006 0036 
+; 0006 0037 		TCCR3A=0x00;			// делитель до 7.813кГц (128uS)
+;PCODE: $00000010 VOL: 0
+;PCODE: $00000011 VOL: 0
+; 0006 0038 		TCCR3B=0x05;
+;PCODE: $00000012 VOL: 0
+;PCODE: $00000013 VOL: 0
+; 0006 0039 
+; 0006 003A 		TCNT3H=(0xFFFF - (time_OFF_scremb/128)) >>8;			// иниц. величины 8с
+;PCODE: $00000014 VOL: 0
+;PCODE: $00000015 VOL: 0
+; 0006 003B 		TCNT3L=0xFFFF - (time_OFF_scremb/128);			// иниц. величины 8с
+;PCODE: $00000016 VOL: 0
+;PCODE: $00000017 VOL: 0
+; 0006 003C }
+;PCODE: $00000018 VOL: 0
+;PCODE: $00000019 VOL: 0
+;
+;// возвращает число введенных абонентов
+;u32 getAbons (void)
+; 0006 0040 {
+;PCODE: $0000001A VOL: 0
+;PCODE: $0000001B VOL: 0
+; 0006 0041 	u32 a = 0;
+; 0006 0042 
+; 0006 0043 				if (fseek (fu_user, 0, SEEK_SET) == EOF)
+;PCODE: $0000001C VOL: 0
+;PCODE: $0000001D VOL: 0
+;PCODE: $0000001E VOL: 0
+;PCODE: $0000001F VOL: 0
+;PCODE: $00000020 VOL: 0
+;PCODE: $00000021 VOL: 0
+;PCODE: $00000022 VOL: 0
+;PCODE: $00000023 VOL: 0
+;PCODE: $00000024 VOL: 0
+;	a -> Y+0
+;PCODE: $00000025 VOL: 0
+;PCODE: $00000026 VOL: 0
+;PCODE: $00000027 VOL: 0
+;PCODE: $00000028 VOL: 0
+;PCODE: $00000029 VOL: 0
+;PCODE: $0000002A VOL: 0
+;PCODE: $0000002B VOL: 0
+;PCODE: $0000002C VOL: 0
+; 0006 0044 				{
+; 0006 0045 
+; 0006 0046 				#ifdef print
+; 0006 0047 				printf("getAbons - ERROR\n\r");
+; 0006 0048 	 			#endif
+; 0006 0049 
+; 0006 004A 					return 0 ;//поставить указатель на начало файла
+;PCODE: $0000002D VOL: 0
+;PCODE: $0000002E VOL: 0
+;PCODE: $0000002F VOL: 0
+; 0006 004B 				}
+; 0006 004C 
+; 0006 004D 				kolvo_abonentov = fgetc(fu_user);
+;PCODE: $00000030 VOL: 0
+;PCODE: $00000031 VOL: 0
+;PCODE: $00000032 VOL: 0
+;PCODE: $00000033 VOL: 0
+;PCODE: $00000034 VOL: 0
+;PCODE: $00000035 VOL: 0
+;PCODE: $00000036 VOL: 0
+; 0006 004E 				kolvo_abonentov |= fgetc(fu_user)*256;
+;PCODE: $00000037 VOL: 0
+;PCODE: $00000038 VOL: 0
+;PCODE: $00000039 VOL: 0
+;PCODE: $0000003A VOL: 0
+;PCODE: $0000003B VOL: 0
+;PCODE: $0000003C VOL: 0
+;PCODE: $0000003D VOL: 0
+;PCODE: $0000003E VOL: 0
+; 0006 004F 				kolvo_abonentov |= fgetc(fu_user)*256*256;
+;PCODE: $0000003F VOL: 0
+;PCODE: $00000040 VOL: 0
+;PCODE: $00000041 VOL: 0
+;PCODE: $00000042 VOL: 0
+;PCODE: $00000043 VOL: 0
+;PCODE: $00000044 VOL: 0
+;PCODE: $00000045 VOL: 0
+;PCODE: $00000046 VOL: 0
+;PCODE: $00000047 VOL: 0
+; 0006 0050 				kolvo_abonentov |= fgetc(fu_user)*256*256*256;
+;PCODE: $00000048 VOL: 0
+;PCODE: $00000049 VOL: 0
+;PCODE: $0000004A VOL: 0
+;PCODE: $0000004B VOL: 0
+;PCODE: $0000004C VOL: 0
+;PCODE: $0000004D VOL: 0
+;PCODE: $0000004E VOL: 0
+;PCODE: $0000004F VOL: 0
+;PCODE: $00000050 VOL: 0
+;PCODE: $00000051 VOL: 0
+; 0006 0051 
+; 0006 0052                 return kolvo_abonentov;
+;PCODE: $00000052 VOL: 0
+;PCODE: $00000053 VOL: 0
+;PCODE: $00000054 VOL: 0
+;PCODE: $00000055 VOL: 0
+; 0006 0053 }
+;PCODE: $00000056 VOL: 0
+;
+;
+;u8 scrambling (void)
+; 0006 0057 {
+;PCODE: $00000057 VOL: 0
+;PCODE: $00000058 VOL: 0
+; 0006 0058 		u32 a;
+; 0006 0059 		static u8 count_ciklovogo = 0;		// для счета цикловых пакетов
+; 0006 005A 
+; 0006 005B 		switch (scrambCond)
+;PCODE: $00000059 VOL: 0
+;	a -> Y+0
+;PCODE: $0000005A VOL: 0
+; 0006 005C 		{
+; 0006 005D 			case startScremb:
+;PCODE: $0000005B VOL: 0
+;PCODE: $0000005C VOL: 0
+; 0006 005E 				eefprog=f_buff_prog;            //поставить указатель на начало
+; 0006 005F 				kolvo_stvolov= *eefprog++;
+;PCODE: $0000005D VOL: 0
+;PCODE: $0000005E VOL: 0
+;PCODE: $0000005F VOL: 0
+; 0006 0060 
+; 0006 0061 				#ifdef print
+; 0006 0062 				printf("kolvo_stvolov=%d \n\r",kolvo_stvolov);
+; 0006 0063 		 		#endif
+; 0006 0064 
+; 0006 0065 				kolvo_abonentov = getAbons();
+;PCODE: $00000060 VOL: 0
+;PCODE: $00000061 VOL: 0
+; 0006 0066 
+; 0006 0067 				#ifdef print
+; 0006 0068 				printf("kolvo_abonentov=%d \n\r",kolvo_abonentov);
+; 0006 0069 				#endif
+; 0006 006A 
+; 0006 006B 				schetchic_abonentov = 0;
+;PCODE: $00000062 VOL: 0
+;PCODE: $00000063 VOL: 0
+; 0006 006C 				scrambCond = TX_g_p_razresh;				// переходим к передаче пакетов абонентам
+;PCODE: $00000064 VOL: 0
+;PCODE: $00000065 VOL: 0
+; 0006 006D 				break;
+;PCODE: $00000066 VOL: 0
+; 0006 006E 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 006F 			case TX_g_p_razresh:
+;PCODE: $00000067 VOL: 0
+;PCODE: $00000068 VOL: 0
+;PCODE: $00000069 VOL: 0
+; 0006 0070 				if (schetchic_abonentov < kolvo_abonentov)
+;PCODE: $0000006A VOL: 0
+;PCODE: $0000006B VOL: 0
+;PCODE: $0000006C VOL: 0
+;PCODE: $0000006D VOL: 0
+; 0006 0071 				{
+; 0006 0072 					#ifdef print
+; 0006 0073 					printf("Generation g_p_razresh No- %d \n\r",schetchic_abonentov);
+; 0006 0074 					#endif
+; 0006 0075 			 		g_p_razresh();													//генерация пакета разрешений
+;PCODE: $0000006E VOL: 0
+; 0006 0076 			 		schetchic_abonentov++;
+;PCODE: $0000006F VOL: 0
+;PCODE: $00000070 VOL: 0
+;PCODE: $00000071 VOL: 0
+;PCODE: $00000072 VOL: 0
+; 0006 0077 					count_paket++;
+;PCODE: $00000073 VOL: 0
+;PCODE: $00000074 VOL: 0
+;PCODE: $00000075 VOL: 0
+;PCODE: $00000076 VOL: 0
+; 0006 0078 
+; 0006 0079 					if ((count_paket & koef_pd_kl)==0)						// Генерация
+;PCODE: $00000077 VOL: 0
+;PCODE: $00000078 VOL: 0
+;PCODE: $00000079 VOL: 0
+; 0006 007A 					{
+; 0006 007B 					 	scrambCond = TX_g_p_kluchi;
+;PCODE: $0000007A VOL: 0
+;PCODE: $0000007B VOL: 0
+; 0006 007C 					 	break;
+;PCODE: $0000007C VOL: 0
+; 0006 007D 					}
+; 0006 007E 				}
+;PCODE: $0000007D VOL: 0
+; 0006 007F //				else scrambCond = TX_g_p_flash; 	// переходим к передаче обновления ПО
+; 0006 0080 				else 	scrambCond = TX_g_p_ciklovogo; 	// переходим к передаче  циклового пакета
+;PCODE: $0000007E VOL: 0
+;PCODE: $0000007F VOL: 0
+;PCODE: $00000080 VOL: 0
+;PCODE: $00000081 VOL: 0
+; 0006 0081 
+; 0006 0082 				break;
+;PCODE: $00000082 VOL: 0
+;PCODE: $00000083 VOL: 0
+; 0006 0083 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 0084 			case TX_g_p_kluchi:
+;PCODE: $00000084 VOL: 0
+;PCODE: $00000085 VOL: 0
+;PCODE: $00000086 VOL: 0
+; 0006 0085 				#ifdef print
+; 0006 0086 				printf("Generation g_p_kluch...\n\r ");
+; 0006 0087 				#endif
+; 0006 0088 				g_p_kluchi();
+;PCODE: $00000087 VOL: 0
+; 0006 0089 				if ((count_paket & Koef_men_kl)==0)					// Генерация
+;PCODE: $00000088 VOL: 0
+;PCODE: $00000089 VOL: 0
+;PCODE: $0000008A VOL: 0
+; 0006 008A 				{
+; 0006 008B //					if (count_paket & (Koef_men_kl+1)) scrambCond = TX_men_ver_kl;
+; 0006 008C 					if (count_paket & (Koef_men_kl+1))
+;PCODE: $0000008B VOL: 0
+;PCODE: $0000008C VOL: 0
+;PCODE: $0000008D VOL: 0
+; 0006 008D 					{
+; 0006 008E 						#ifdef print
+; 0006 008F 						printf("Generation men_ver_k... \n\r");
+; 0006 0090 						#endif
+; 0006 0091 					 	men_ver_kl();
+;PCODE: $0000008E VOL: 0
+; 0006 0092 
+; 0006 0093 						scrambCond = TX_g_p_razresh;
+;PCODE: $0000008F VOL: 0
+;PCODE: $00000090 VOL: 0
+; 0006 0094 					}
+; 0006 0095 					else 	scrambCond = TX_g_p_koderu;
+;PCODE: $00000091 VOL: 0
+;PCODE: $00000092 VOL: 0
+;PCODE: $00000093 VOL: 0
+;PCODE: $00000094 VOL: 0
+; 0006 0096 					break;
+;PCODE: $00000095 VOL: 0
+;PCODE: $00000096 VOL: 0
+; 0006 0097 				}
+; 0006 0098 
+; 0006 0099 				scrambCond = TX_g_p_razresh;
+;PCODE: $00000097 VOL: 0
+;PCODE: $00000098 VOL: 0
+;PCODE: $00000099 VOL: 0
+; 0006 009A 				break;
+;PCODE: $0000009A VOL: 0
+; 0006 009B 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 009C 			case TX_men_ver_kl:
+;PCODE: $0000009B VOL: 0
+;PCODE: $0000009C VOL: 0
+;PCODE: $0000009D VOL: 0
+; 0006 009D 				#ifdef print
+; 0006 009E 				printf("Generation men_ver_k... \n\r");
+; 0006 009F 				#endif
+; 0006 00A0 			 	men_ver_kl();
+;PCODE: $0000009E VOL: 0
+; 0006 00A1 
+; 0006 00A2 				scrambCond = TX_g_p_razresh;
+;PCODE: $0000009F VOL: 0
+;PCODE: $000000A0 VOL: 0
+; 0006 00A3 				break;
+;PCODE: $000000A1 VOL: 0
+; 0006 00A4 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 00A5 			case	TX_g_p_koderu:
+;PCODE: $000000A2 VOL: 0
+;PCODE: $000000A3 VOL: 0
+;PCODE: $000000A4 VOL: 0
+; 0006 00A6 				#ifdef print
+; 0006 00A7 				printf("Generation g_p_koderu... \n\r");
+; 0006 00A8 				#endif
+; 0006 00A9 				g_kod();							//подготовка ключей кодеру
+;PCODE: $000000A5 VOL: 0
+; 0006 00AA 				g_p_koderu();					//кодирование и передача пакета
+;PCODE: $000000A6 VOL: 0
+; 0006 00AB 
+; 0006 00AC 				scrambCond = TX_g_p_flagov;
+;PCODE: $000000A7 VOL: 0
+;PCODE: $000000A8 VOL: 0
+; 0006 00AD 				break;
+;PCODE: $000000A9 VOL: 0
+; 0006 00AE 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 00AF 			case TX_g_p_flagov:
+;PCODE: $000000AA VOL: 0
+;PCODE: $000000AB VOL: 0
+;PCODE: $000000AC VOL: 0
+; 0006 00B0 				#ifdef print
+; 0006 00B1 				printf("Generation g_p_flagov... \n\r");
+; 0006 00B2 				#endif
+; 0006 00B3 				g_p_flagov();
+;PCODE: $000000AD VOL: 0
+; 0006 00B4 
+; 0006 00B5 				scrambCond = TX_g_p_razresh;
+;PCODE: $000000AE VOL: 0
+;PCODE: $000000AF VOL: 0
+; 0006 00B6 
+; 0006 00B7 				break;
+;PCODE: $000000B0 VOL: 0
+; 0006 00B8 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 00B9 /*			case TX_g_p_flash:
+; 0006 00BA 
+; 0006 00BB 				scrambCond = TX_g_p_obnovlenie; 	// переходим к передаче обновления ПО
+; 0006 00BC 				break;
+; 0006 00BD 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 00BE 			case TX_g_p_obnovlenie:
+; 0006 00BF 				// Генерация
+; 0006 00C0 				if ((count_paket & Koef_pd_soft)==0)
+; 0006 00C1 				{
+; 0006 00C2 					if (flag_est_obnovlenie_flash==1)
+; 0006 00C3 					{
+; 0006 00C4 						#ifdef print
+; 0006 00C5 						printf("N_sec=%d ...\n\r" ,N_sektora);
+; 0006 00C6 						#endif
+; 0006 00C7 //						g_p_progf();				//генерация пакета флэш
+; 0006 00C8 					}
+; 0006 00C9 
+; 0006 00CA 					if (flag_est_obnovlenie_eeprom ==1)
+; 0006 00CB 					{
+; 0006 00CC 			//			g_p_proge(port);//генерация пакета   ЕЕПРОМ
+; 0006 00CD 						#ifdef print
+; 0006 00CE 						printf("g_p_proge...\n\r  " );
+; 0006 00CF 						#endif
+; 0006 00D0 					}
+; 0006 00D1 				}
+; 0006 00D2 
+; 0006 00D3 				scrambCond = TX_g_p_ciklovogo; 	// переходим к передаче  циклового пакета
+; 0006 00D4 				break;*/
+; 0006 00D5 
+; 0006 00D6 				////////////////////////////////////////////////////////////////////////////////////////////////
+; 0006 00D7 			case TX_g_p_ciklovogo:
+;PCODE: $000000B1 VOL: 0
+;PCODE: $000000B2 VOL: 0
+;PCODE: $000000B3 VOL: 0
+; 0006 00D8 				#ifdef print
+; 0006 00D9 				printf("\n\r-------------------------Generation g_p_ciklovogo...-------------------- \n\r");
+; 0006 00DA 				#endif
+; 0006 00DB 				if (count_ciklovogo >= kolvo_ciklov)
+;PCODE: $000000B4 VOL: 0
+;PCODE: $000000B5 VOL: 0
+;PCODE: $000000B6 VOL: 0
+; 0006 00DC 				{
+; 0006 00DD 				  	 	g_p_ciklovogo();
+;PCODE: $000000B7 VOL: 0
+; 0006 00DE 				  	 	count_ciklovogo = 0;
+;PCODE: $000000B8 VOL: 0
+;PCODE: $000000B9 VOL: 0
+; 0006 00DF 				}
+; 0006 00E0 				else count_ciklovogo ++;
+;PCODE: $000000BA VOL: 0
+;PCODE: $000000BB VOL: 0
+;PCODE: $000000BC VOL: 0
+;PCODE: $000000BD VOL: 0
+;PCODE: $000000BE VOL: 0
+; 0006 00E1 
+; 0006 00E2 				scrambCond = startScremb;	//  переходим к установке стартовых параметров
+;PCODE: $000000BF VOL: 0
+;PCODE: $000000C0 VOL: 0
+;PCODE: $000000C1 VOL: 0
+; 0006 00E3 				break;
+;PCODE: $000000C2 VOL: 0
+; 0006 00E4 
+; 0006 00E5 			default: break;
+;PCODE: $000000C3 VOL: 0
+;PCODE: $000000C4 VOL: 0
+; 0006 00E6 		}
+;PCODE: $000000C5 VOL: 0
+; 0006 00E7 
+; 0006 00E8 		return TRUE;
+;PCODE: $000000C6 VOL: 0
+;PCODE: $000000C7 VOL: 0
+;PCODE: $000000C8 VOL: 0
+; 0006 00E9 }
+;PCODE: $000000C9 VOL: 0

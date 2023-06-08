@@ -1,0 +1,22 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: C:\Users\Michael\C_CVision\CodingDevice\Monitor\main.c
+Global variables memory map:
+
+Variable                          Address   Size
+prgmode                                                               R2.0    1/8
+descramble                                                            R2.1    1/8
+pAddr                                                                 160h      1
+adr                                                                     R4      1
+typePack                                                                R5      1
+dannForTX                                                             R2.2    1/8
+toReboot                                                              R2.3    1/8
+txBuffer                                                              161h    128
+rxBuffer                                                              1E1h    128
+pcrc                                                                  261h      1
+plen                                                                  262h      1
+nbyts                                                                 263h      1
+next_rand                                                             264h      4
+rand_cnt                                                                R6      1

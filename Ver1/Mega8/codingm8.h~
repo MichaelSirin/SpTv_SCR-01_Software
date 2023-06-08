@@ -1,0 +1,53 @@
+#include <io.h>
+#include <Comm.h>
+#include <Delay.h>
+
+#define LedOn()        {DDRC.0 = 1,PORTC.0=0;};
+#define LedOff()       {DDRC.0 = 1,PORTC.0=1;};    
+      
+
+// Фазы работы приемопередатчиков
+#define RX_HDR	 1		// Принятый байт - заголовок
+#define RX_LEN   2		// Принятый байт - длина
+#define RX_ADDR  3		// Принятый байт - адрес
+#define RX_TYPE  4		// Принятый байт - тип пакета
+#define RX_DATA  5		// Принятый байт - байт данных
+#define RX_CRC   6		// Принятый байт - CRC
+#define RX_OK    7		// Пакет успешно принят и адресован мне
+#define RX_TIME  8		// Во время приема произошел тайм-аут
+#define RX_ERR   9		// Ошибка CRC приема
+#define RX_IDLE 10		// Внутренний канал свободен
+
+extern unsigned char pAddr;				//Физический адрес устройства в TWI 
+
+extern unsigned char rx0buf[];
+extern unsigned char pcrc;	// Контрольная сумма 
+
+// Пакеты, используемые внутри CD
+#define startPing				0xAA			// признак пинга при опросе количества устройств   
+#define startPack			'q'					// признак начала пакета
+
+#define GetLogAddr	1			// дать логический адрес 
+#define pingPack			2			// нас пингуют на наличие информации на передачу
+#define OP					100		// пакеты для отладки
+
+
+//void StartReply(unsigned char dlen);
+//void putchar0(char byt);
+//void EndReply(void);
+void twi_init (void);           //Настройка I2C 
+unsigned char twi_byte (unsigned char data);
+//void EndIntReq(void);
+inline unsigned char ReceiveChar(void);         
+void txBuff (void);  
+void twi_init (void);
+unsigned short GetWordBuff(unsigned char a);
+
+//void DiscardIncomingPack(void);
+//void putword0(unsigned short wd); 
+//void RelayPack(void); 
+//unsigned char rx_addr (void);
+//void CommInit(void);            //Настройка UART
+//unsigned char twi_addr (unsigned char addr);
+//void StartIntReq(unsigned char dlen);
+//unsigned char twi_read (unsigned char * pByt, unsigned char notlast);

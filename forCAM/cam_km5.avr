@@ -1,0 +1,2336 @@
+
+;V2.03-устранил ошибку в длине передаваемых данных appl_info
+
+
+;2.02-если абонент не всписке то периодически еепром прописывался нулями
+;	сделал что если ноль записан то уже не пишется
+
+;2.01-введена индикация серийного номера
+
+;V 2.0
+;c непрерывной генерацией ключей
+;модернизация обмена с альтерой
+;переделано на считывание полного пакета по приему
+
+
+
+.equ ver_zeleza=1	;for CAM
+
+;21-06-2005 
+;Программа декодера для САМ модуля САМ2
+;Версия 
+;Устройство ATMega32
+;Кварц - внутренний 8 МГц
+
+;при программировании установить cksel[3:0]=0100b;SUT[1:0]=00b boden=0
+
+
+;Изменился прием служебного пакета: Принимаем в подпрограммах.
+
+.include "m32def.inc"
+
+;порты SPI интерфейса. В новой версии платы разменял сигналы DI_SPI и DO_SPI !!!
+
+.equ	di_spi		=	pinc		;данные вход (прием)
+.equ	di_spib		=	1
+.equ	str_a_spi	=	portc		;строб загрузки адреса
+.equ	str_a_spib	=	3
+.equ	strWR_spi	=	portc		;строб записи
+.equ	strWR_spib	=	2
+.equ	do_spi		=	portc		;данные выход (передача)
+.equ	do_spib		=	4
+.equ	clkspi		=	portc		;такты
+.equ	clkspib		=	0
+
+;Сигналы последовательного канала. Применяется для вычитывания пакета
+;.equ	RdClkSer	=	portd		;такты чтения
+;.equ	RdClkSerb	=	7
+;.equ	SerialOut	=	pina		;читаемые данные
+;.equ	SerialOutb	=	7
+;.equ 	NewPack		=	pinc		;признак наличия пакета
+;.equ 	NewPackb	=	7
+
+;сигнальные порты 
+;portC
+.equ	SR_pin		=	5
+.equ	HC_pin		=	6		;Признак занятости модуля HOSTom (1-занят, 0-свободен)
+;portD
+.equ	ZAHVAT		=	3		;int1
+
+;portA
+.equ	Cmd_res		=7	;Cmd reset
+.equ	DA_out		= 6	;признак переданных данных (признак окончания 
+				;операции передачи или приема)
+.equ	DA_pin		=	5	;признак Есть данные на передачу
+.equ	FR_pin		=	4
+.equ read_end		=	3
+
+
+;порты загрузки ALTERA
+;portA
+.equ	nConfig		=	0	;войти в режим конфигурирования
+.equ	DCLK		=	1	;такты
+.equ	DATA0		=	2	;данные
+
+;portB
+.equ	IREQ		=0	;задержка чтения PCMCIA на время загрузки ALTERA
+;portD
+.equ	CONF_DONE	=	5	;конец конфигурирования
+.equ	nStatus		=	4	;готовность к конфигурированию
+
+
+;остальные порты
+;portd
+.equ	led1			=	2
+
+;.equ	testpin	=	portb	;пин для различных целей, для проверок
+;.equ	testpinb=	4	;noga=44
+
+
+
+
+
+;ячейки ОЗУ
+.equ	my_tc_id	= $60	;ID моего транспортного соединения
+.equ	tc_id		= $61	;идентификатор TPDU канала
+.equ	TPDU_tag	= $62	;принятый/передаваемый тэг
+.equ	TPDU_size	= $63	;кол-во переданных байт
+.equ	TPDU_pntr	= $64	;указатель на каком байте остановлена передача
+.equ	TPDU_size_rx	= $65	;кол-во принятых байт
+.equ	TPDU_pntr_rx	= $66	;указатель на каком байте остановлена загрузка
+.equ	RESURSE 	= $67	;ID моего обслуживаемого ресурса, 4 байта
+.equ	SS_NUM	= RESURSE+4	;ID номер текущей сессии, 2 байта
+.equ	SS_NUM1	= SS_NUM+2	;ID сессии к Resurce Manager, 2 байта
+.equ	SS_NUM2	= SS_NUM1+2	;ID сессии к Application Information, 2 байта
+.equ	SS_NUM3	= SS_NUM2+2	;ID сессии к Conditional Access Support, 2 байта
+
+.equ	TPDU_buf = SS_NUM3+2	;буфер для сборки SPDU блоков, 128 байт
+.equ	APDU_buf	=	TPDU_buf+4
+
+.equ	num_pids = APDU_buf+256;128	;кол-во найденных PID номеров
+
+;.equ	pid_buf	=num_pids+1	;буфер для накопления найденных PID, 16 байт
+
+
+
+
+;константы
+.equ	buf_size	=	128		;размер буфера в альтере
+
+
+;TPDU's
+.equ	T_sb		=	$80
+.equ	T_rcv		=	$81
+.equ	Tcreate_t_c	=	$82			;a.4.1.4
+.equ	Tc_t_c_reply	=	$83			;a.4.1.5
+.equ	T_delete	=	$84			;a.4.1.6
+.equ	Td_t_c_reply	=	$85			;a.4.1.7
+.equ	Trequest_t_c	=	$86			;a.4.1.8
+.equ	Tnew_t_c	=	$87			;a.4.1.9
+.equ	Tt_c_error	=	$88			;a.4.1.10
+.equ	Tdata_last	=	$a0
+.equ	Tdata_more	=	$a1
+
+
+;SPDU's
+.equ	Ts_num		=	$90		;Tsession_number
+.equ	To_s_req	=	$91		;Topen_session_request
+.equ	To_s_resp	=	$92		;Topen_session_response
+.equ	Tcr_ses		=	$93		;Tcreate_session
+.equ	Tcr_ses_res	=	$94		;Tcreate_session_response
+.equ	Tcl_ses		=	$95		;Tclose_session
+.equ	Tcl_ses_res	=	$96		;Tclose_session_response
+
+
+
+.def	s_reg			=	R3
+
+.def	tl_flag		=	R4		;флаг состояния схемы
+;расписание битов флага:
+;0  запас
+;1  запас
+;2  производится прием данных и склейка
+;3  TPDU успешно принят
+;4  кроме TPDU приняты еще и данные
+;5  производится нарезка блоков даных по передаче
+;6  ждем пока HOST вычитает данные
+;7  имеются данные для передачи хосту, нужно их передать
+
+
+.def	appl_flag		=	R5
+;0  Link Layer пройден, инициализация завершена
+;1  Transport Layer пройден, соединение установлено, номер tc_id хранится в TC_ID[0]
+;2  Session Layer пройден, сессия установлена, номер сессии хранится в SS_NUM[1:0]
+;3  сообщаю уровню, что данные успешно переданы
+;4  запас
+;5  запас
+;6  Приняты данные от хоста
+;7  Приказ передать мой APDU
+
+
+.def	service_flag	=	R6
+;0  приказ открыть сессию к Resurce Manager
+;1  приказ открыть сессию к Application Information
+;2  приказ открыть сессию к Conditional Access Support
+;3  запас
+;4  сессия к Resurce Manager открыта
+;5  сессия к Application Information открыта
+;6  сессия к Conditional Access Support открыта
+;7  запас
+
+
+
+.org $0
+	jmp SMALLBOOTSTART	;rjmp start
+
+.db ver_zeleza,$ff
+poz_ver_po:
+.db ver_po, $ff
+
+
+.org INT1addr
+	rjmp prm_data	;prishel paket ot tunera
+
+.org INT2addr	;=$006	; External Interrupt2 po sbrosu
+	rjmp 0
+
+
+
+;-----------------------------------------------------------------------------
+;начало программного кода
+;-----------------------------------------------------------------------------
+start:
+	ldi r16,low(ramend)
+	out spl,r16
+	ldi r16,high(ramend)
+	out sph,r16
+	cli
+	;------------------- Настройка UART ---------------------------	
+	clr r16
+	out UBRRH,r16				;Set baud rate 38400
+	ldi r16,12				;38.400 при 8МГц тактовой
+	out UBRRL,r16
+
+	clr r16
+	out UCSRA,r16
+
+	ldi r16,(1<<RXEN)+(1<<TXEN)	;Enable Receiver and Transmitter
+	out UCSRB,r16
+
+	ldi r16,(1<<URSEL)+(1<<UCSZ1)+(1<<UCSZ0)	;8,1,n
+	out UCSRC,r16
+
+
+;~ порты и загрузка альтеры ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	;a
+	ldi r16,(1<<nConfig)+(1<<DCLK)+(1<<DATA0)+(1<<da_pin)+(1<<fr_pin)
+	out ddra,r16
+	ldi r16,(1<<nConfig)+(1<<fr_pin)
+	out porta,r16
+
+
+	;c
+	ldi r16,(1<<str_a_spib)+(1<<strWR_spib)+(1<<do_spib)+(1<<clkspib)
+	out ddrc,r16
+	clr r16
+	out portc,r16
+
+	;d
+	ldi r16,(1<<LED1)+(1<<Conf_done)+(1<<nStatus);+(1<<RdClkSerb)
+	out portd,r16
+	ldi r16,(1<<LED1);+(1<<RdClkSerb)
+	out ddrd,r16
+
+	rcall altera_configure
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	ldi r16,(1<<int1)+(1<<int2)
+	out gicr,r16
+
+
+	ldi r16,(1<<isc11)+(1<<isc2)
+	out mcucr,r16			;INT1-срез, INT2-front sbrosa
+
+	clr r16
+	sts TPDU_pntr,r16			;обнуляю указатель буфера
+	sts tpdu_size,r16
+	sts tpdu_tag,r16
+	sts tc_id,r16
+	sts my_tc_id,r16
+
+	clr tl_flag
+	clr appl_flag
+	clr service_flag
+
+
+	cbi porta,DA_pin		;занять модуль, сбросить флаги
+	cbi porta,FR_pin
+	rcall spi_addr3
+	ldi r16,1			;очистить флаги WE и RE
+	ldi r17,2
+	rcall spi_pdbyte
+	clr r16
+	ldi r17,0
+	rcall spi_pdbyte
+	clr r16
+	rcall spi_pdbyte
+
+	sbi porta,FR_pin		;отпустить модуль
+	rcall spi_addr3
+
+	rcall int_razr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	sbi portb,IREQ				;отпускаю модуль
+	sei
+
+	ldi r16,5
+	mov r9,r16
+
+
+ldi r16,'Q'
+rcall ws
+
+
+
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(txtIniCam*2)     ;print
+;	ldi zh,high(txtIniCam*2)
+;	rcall print
+;------------------------------------------------------------------------------
+
+	rjmp inidecoder			;инициализируем декодер
+
+;------------------------------------------------------------------------------------------------
+;
+;Самый верхний уровень программы, Application Layer
+;
+;Связь с подлежащими уровнями производится посредством флага [apl_flag]
+; а также буфера SPDU_buf и
+;указателя его размера TPDU_SIZE
+;
+;------------------------------------------------------------------------------------------------
+;
+
+application_layer:
+
+	sbic pinb,2	;pin reseta
+	rjmp start
+
+	sbic pina,Cmd_res	;ne proveril
+	rjmp start
+
+
+
+	rcall dekoder
+			;При занятом модуле только обрабатываем только
+			; пакеты декодера
+
+application_layer2:
+;ldi r16,'&'
+;rcall ws
+
+	sbrc tl_flag,6		;HOST вычитал данные?
+	rcall tstTXdnn		;если нет-то ожидаем и работает только декодер
+
+	sbrc tl_flag,6			
+	rjmp application_layer
+
+;ldi r16,'#'
+;rcall ws
+	rcall session_layer
+
+	sbrs appl_flag,2			;установление сессии
+	rjmp start_session_cmd
+
+;ldi r16,'3'
+;rcall ws
+
+	sbrs appl_flag,6			;пришли данные от хоста
+	rjmp application_layer
+
+
+;----------------------------------------
+
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(NewDannFromHost*2)     ;print
+;	ldi zh,high(NewDannFromHost*2)
+;	rcall print
+;------------------------------------------------------------------------------
+;ldi r16,'*'
+;rcall ws
+
+	clt
+	bld appl_flag,6
+
+	ldi zh,high(apdu_buf)			;смотрю что мне пришло
+	ldi zl,low(apdu_buf)
+
+	ld r16,z+
+	ld r16,z+
+	cpi r16,$80
+	breq al_123	;Res. Manager, Appl. Information, Conditional Access Support
+
+;rcall wb
+;ldi r16,'-'
+;rcall ws
+
+;	cpi r16,$84
+;	breq al_45			;Host Control, Date-Time
+;	cpi r16,$88
+;	breq al_6				;MMI
+	rjmp application_layer_exit
+
+
+al_123:
+
+;ldi r16,'A'
+;rcall ws
+
+	ld r16,z
+
+	cpi r16,$10				;Tprofile_enq
+	breq al_1_1
+
+	cpi r16,$12				;Tprofile_change
+	breq al_1_2
+
+	cpi r16,$11				;Tprofile_reply
+	breq al_1_3
+
+	cpi r16,$20				;Tapplication_info
+	breq al_2_1
+
+	cpi r16,$22				;Tenter_menu
+	breq al_2_2
+
+	cpi r16,$30				;Tca_info_enq
+	breq al_3_1
+
+	cpi r16,$32				;Tca_pmt
+	breq all_3_2
+
+	rjmp application_layer_exit
+
+all_3_2:	rjmp al_3_2
+
+
+;----------реакция на запросы------------------
+
+al_1_1:			;послать в ответ Tprofile со списком моих ресурсов
+;ldi r16,'1'
+;call ws
+	ldi zh,high(profile_reply*2)
+	ldi zl,low(profile_reply*2)
+	rcall load_apdu
+
+	rjmp application_layer_exit
+
+
+al_1_2:
+;ldi r16,'2'
+;call ws
+	ldi zh,high(profile_enqury*2)
+	ldi zl,low(profile_enqury*2)
+	rcall load_apdu
+	rjmp application_layer_exit
+
+
+al_1_3:				;получил ответ от хоста со списком ресурсов
+;ldi r16,'3'
+;call ws
+	clt
+	bld appl_flag,2
+	rjmp start_session_cmd
+
+al_2_1:
+;ldi r16,'4'
+;call ws
+	ldi zh,high(appl_info*2)
+	ldi zl,low(appl_info*2)
+	rcall load_apdu_num
+
+al_2_1_:
+;ldi r16,'5'
+;call ws
+	rcall session_layer		;подождать пока передастся информация
+	sbrc appl_flag,7
+	rjmp al_2_1_
+
+	clt
+	bld appl_flag,2
+	rjmp start_session_cmd
+
+
+al_2_2:					;передать информацию о моем софте
+;ldi r16,'6'
+;call ws
+	ldi zh,high(appl_info*2)
+	ldi zl,low(appl_info*2)
+	rcall load_apdu_num
+	rjmp application_layer_exit
+
+al_3_1:
+;ldi r16,'7'
+;call ws
+	ldi zh,high(ca_info*2)
+	ldi zl,low(ca_info*2)
+	rcall load_apdu
+	cbi portd,led1			;инициализация пройдена
+
+;	ldi r16,0x01	;Разрешаю прерывание от таймера 0 (опрос есть ли пакет)
+;	out TIMSK,r16
+
+	rjmp inidecoder			;инициализируем декодер
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.include "cam_dec5.avr"		; Включаем программу декодера
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;разбираю таблицу с PID кодами для текущей программы. Кодов предусматривается
+; до 8-ми штук (16 байт).
+;с возможностью дальнейшего расширения при необходимости.
+;После того, как все PID коды найдены и сохранены, вызываю
+;подпрограмму PID_analyze, которая возвращает мне в регистре R19 коды
+;для каждого из восьми PIDов: бит = 1 если декодирование разрешено, 
+;и 0 если поток запрещено декодировать. Номер PID (по счету) соответствует
+;номеру бита. 
+;В регистре R20 возвращается команда для общего декодирования
+; канала (CA_enable_flag): код 81h - декодирование разрешено
+; F1h - декодирование запрещено
+
+al_3_2:				;разбираю CA_PMT и формирую CA_PMT_REPLY
+;ldi r16,'8'
+;call ws
+
+	ldi zh,high(apdu_buf+3)
+	ldi zl,low(apdu_buf+3)
+	ld r21,z+			;длинна посылки
+	adiw zl,1			;пропустить ca_pmt_list_management
+	ld r7,z+		;2 байта номер программы (program_number)
+	ld r8,z+
+	adiw zl,1		;пропустить номер версии и current_next_indicator
+	ld r16,z+		;счетчик длинны program_info_lenhth
+	ld r17,z+
+
+	add zl,r17	;указатель ставлю на первое из полей elementary_pid
+	adc zh,r16
+
+	sub r21,r17		;отсечь от длинны обработанные байты
+	ldi r16,6
+	sub r21,r16
+
+	ldi yh,high(pid_buf)
+	ldi yl,low(pid_buf)
+	clr r2				;pid_counter
+
+search_pids:
+	adiw zl,1
+	ld r17,z+				;сохранить PID
+	st y+,r17
+	ld r17,z+
+	st y+,r17
+	inc r2
+
+	adiw zl,1				;ES_info_length
+	ld r18,z+
+
+	clr r17		;указатель адреса на следующее поле stream_type
+	add zl,r18
+	adc zh,r17
+
+	sub r21,r18
+	ldi r17,5
+	sub r21,r17
+
+	tst r21
+	brne search_pids
+
+
+	sts num_pids,r2	;передаю подпрограмме управление процессом
+	clr r16
+	rcall PID_analyze
+
+;rcall a_pr2
+
+;теперь формирую ответный пакет
+
+	ldi zh,high(ca_pmt_reply*2)
+	ldi zl,low(ca_pmt_reply*2)
+
+	rcall load_apdu			;прописать заголовок
+	
+	st y+,r7				;номер программы
+	st y+,r8
+	ldi r16,9
+	st y+,r16				;version_number и current_next_indicator
+	st y+,r20				;CA_enable_flag + CA_enable
+
+
+	ldi zh,high(pid_buf)
+	ldi zl,low(pid_buf)
+	lds r2,num_pids			;pid_counter
+	ldi r21,4				;счетчик байт
+
+load_pids:
+	ld r16,z+
+	st y+,r16
+	ld r16,z+
+	st y+,r16
+
+	ldi r16,3
+	add r21,r16
+
+	ldi r16,$81				;CA_enable
+	sbrs r19,0
+	ldi r16,$F1
+	st y+,r16
+
+	ror r19
+
+	dec r2
+	brne load_pids
+
+	ldi zh,high(apdu_buf+3)
+	ldi zl,low(apdu_buf+3)
+	st z,r21
+	ldi r16,4			;учесть заголовок и байт длинны
+	add r21,r16
+	sts tpdu_size,r21		;общая длинна посылки
+
+
+;	rjmp application_layer_exit
+
+
+
+application_layer_exit:
+	rjmp application_layer2
+
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+;дать команду на начало новой сессии
+start_session_cmd:
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(NewSession*2)     ;print
+;	ldi zh,high(NewSession*2)
+;	rcall print
+;mov r16,service_flag
+;rcall wb
+
+;ldi r16,'1'
+;rcall ws
+
+;------------------------------------------------------------------------------
+
+	set
+	sbrs service_flag,4
+	rjmp to_res_manager
+	sbrs service_flag,5
+	rjmp to_app_manager
+	sbrs service_flag,6
+	rjmp to_ca_support
+	rjmp start_session_cmd_exit
+
+to_res_manager:
+	bld service_flag,0
+	rjmp start_session_cmd_exit
+
+to_app_manager:
+;ldi r16,'1'
+;rcall ws
+
+	bld service_flag,1
+	rjmp start_session_cmd_exit
+
+to_ca_support:
+	bld service_flag,2
+
+start_session_cmd_exit:
+	rjmp application_layer
+
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;подпрограмма перегружает данные из Flash в буфер APDU
+;регистр ZH:ZL должен указывать на начало буфера
+load_apdu:
+	ldi yh,high(apdu_buf)
+	ldi yl,low(apdu_buf)
+
+	lpm
+	adiw zl,1			;размер буфера
+	sts tpdu_size,r0
+	mov r17,r0
+;push r16
+;ldi r16,'L'
+;rcall ws
+
+;mov r16,r0
+;rcall wb
+;ldi r16,' '
+;rcall ws
+;pop r16
+
+
+load_1:
+	lpm
+	adiw zl,1
+	st y+,r0
+	dec r17
+	brne load_1
+
+	set				;команда передать
+	bld appl_flag,7
+	ret
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+;подпрограмма перегружает данные из Flash в буфер APDU
+;добавляет номер декодера
+;регистр ZH:ZL должен указывать на начало буфера
+
+load_apdu_num:
+
+	ldi yh,high(apdu_buf)
+	ldi yl,low(apdu_buf)
+
+	lpm
+	adiw zl,1			;размер буфера
+	sts tpdu_size,r0
+	mov r17,r0
+
+load_1_num:
+	lpm
+	adiw zl,1
+	st y+,r0
+	dec r17
+	brne load_1_num
+
+	sbiw yl,7	;chislo 7 znakov
+
+	ldi zh,high(mac*2)	;7 mlad bit
+	ldi zl,low(mac*2)
+
+	lpm r24,z+			;adr0
+	lpm r25,z+			;adr1
+	adiw zl,2
+	lpm r21,z+
+	com r21				;adr2
+	lpm r17,z
+	com r17				;adr3
+	tst r17
+	brne num_bol8M
+
+	lsr r21
+	ror r25
+	ror r24
+	inc r24
+	brne load_1_num1
+	inc r25
+	brne load_1_num1
+	inc r21
+load_1_num1:		;r21:r25:r24- nomer
+;qqqq
+	clr r16
+	ldi r19,$0f
+	ldi r18,$42
+	ldi r17,$40
+	rcall divznak
+	ldi r19,$01
+	ldi r18,$86
+	ldi r17,$a0
+	rcall divznak
+	clr r19
+	ldi r18,$27
+	ldi r17,$10
+	rcall divznak
+;	clr r19
+	ldi r18,$3
+	ldi r17,$e8
+	rcall divznak
+;	clr r19
+	clr r18
+	ldi r17,$64
+	rcall divznak
+
+;	clr r19
+;	clr r18
+	ldi r17,10
+	rcall divznak
+
+	subi r22,$d0
+	st y+,r22
+
+	rjmp podelil
+
+num_bol8M:
+
+	ldi r17,7
+	ldi r16,'-'
+num_bol32k1:
+	st y+,r16
+	dec r17
+	brne num_bol32k1
+
+podelil:
+	set				;команда передать
+	bld appl_flag,7
+	ret
+
+divznak:
+	clr r16
+divznak1:
+	mov r20,r21
+	mov r23,r25
+	mov r22,r24
+	inc r16
+	sub r24,r17
+	sbc r25,r18
+	sbc r21,r19
+	brcc divznak1
+	dec r16
+	mov r21,r20
+	mov r25,r23
+	mov r24,r22
+	subi r16,$d0	;+30h
+	st y+,r16
+	ret
+
+;------------------------------------------------------------------------------------------------
+;
+;Подлежащий уровень, Session Layer
+;
+;Связь с подлежащими уровнями производится посредством
+;флага [apl_flag], [tl_flag] а также буфера 
+;TPDU_buf и указателя его размера TPDU_SIZE
+;
+;------------------------------------------------------------------------------------------------
+
+session_layer:
+
+	sbrs appl_flag,1	;если нет транспортного соединения
+	rjmp session_exit
+
+
+	sbrs appl_flag,2		;если нет сесии
+	rjmp start_session
+
+	sbrc tl_flag,4			;если принят SPDU
+	rjmp ready_spdu 
+
+	sbrc appl_flag,7		;если есть данные для передачи
+	rjmp spdu_to_host
+
+
+session_exit:
+	rcall transport_layer
+	ret
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+start_session:				;процедура установления новой сесии
+
+	ldi zh,high(tpdu_buf)
+	ldi zl,low(tpdu_buf)
+
+	clr r16
+	sts tpdu_pntr,r16
+	ldi r16,6;7
+	sts tpdu_size,r16
+
+	ldi r16,$91
+	st z+,r16
+	ldi r16,$04
+	st z+,r16
+	ldi r16,$00
+	st z+,r16
+
+	clr r16
+	sbrc service_flag,0	;какому ресурсу буду открывать сессию
+	ldi r16,$01
+	sbrc service_flag,1
+	ldi r16,$02
+	sbrc service_flag,2
+	ldi r16,$03
+	st z+,r16
+
+	ldi r16,$00
+	st z+,r16
+	ldi r16,$41
+	st z+,r16
+
+	set
+	bld tl_flag,7			;команда передать TPDU
+
+ss_1:
+	rcall transport_layer
+	rcall dekoder
+;ldi r16,'z'
+;rcall ws
+
+	sbrc tl_flag,7		;ждать пока запрос будет отправлен**********
+	rjmp ss_1
+	sbrs tl_flag,4			;ждать когда хост ответит
+	rjmp ss_1
+
+	clt
+	bld tl_flag,4
+	rcall transport_layer
+
+
+	ldi zh,high(tpdu_buf)
+	ldi zl,low(tpdu_buf)
+	ld r16,z+
+	cpi r16,$92
+	brne start_session_error
+
+	ld r16,z+			;пропустить размер посылки
+	ld r16,z+			;статус ресурса
+	tst r16				;если не 0, то ресурс не доступен
+	brne start_session_error		
+
+	rcall save_ss_num
+
+	set				;уровень пройден, сессия установлена
+	bld appl_flag,2
+
+start_session_error:
+	rjmp session_exit
+
+
+;подпрограмма сохраняет номер открытой сесии в нужном буфере
+save_ss_num:
+	ld r16,z+			;сохранить идентификатор ресурса
+	sts (resurse+0),r16
+	ld r16,z+
+	sts (resurse+1),r16
+	ld r16,z+
+	sts (resurse+2),r16
+	ld r16,z+
+	sts (resurse+3),r16
+
+	ld r16,z+			;сохранить номер сесии
+	sts (ss_num+0),r16
+	ld r16,z
+	sts (ss_num+1),r16
+
+	sbiw zl,1
+
+	sbrc service_flag,0
+	rjmp save_ss_num1
+	sbrc service_flag,1
+	rjmp save_ss_num2
+
+	ld r16,z+			;Conditional Access Support
+	sts (ss_num3+0),r16
+	ld r16,z
+	sts (ss_num3+1),r16
+
+	clt
+	bld service_flag,2		;подтвердить что сессия установлена
+	set
+	bld service_flag,6
+	rjmp save_ss_num_exit
+
+save_ss_num1:
+	ld r16,z+			;Resurce Manager
+	sts (ss_num1+0),r16
+	ld r16,z
+	sts (ss_num1+1),r16
+
+	clt
+	bld service_flag,0
+	set
+	bld service_flag,4
+	rjmp save_ss_num_exit
+
+save_ss_num2:
+	ld r16,z+			;Application Information
+	sts (ss_num2+0),r16
+	ld r16,z
+	sts (ss_num2+1),r16
+
+	clt
+	bld service_flag,1
+	set
+	bld service_flag,5
+
+save_ss_num_exit:
+
+;ldi r16,'S'
+;rcall ws
+
+	ret
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+ready_spdu:			;принят SPDU, обработать его
+
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(RX_SPDU_FromHost*2)     ;print
+;	ldi zh,high(RX_SPDU_FromHost*2)
+;	rcall print
+;------------------------------------------------------------------------------
+	
+
+	ldi zh,high(tpdu_buf)
+	ldi zl,low(tpdu_buf)
+
+	ld r16,z+
+;rcall wb
+	cpi r16,Ts_num
+	breq r_spdu1
+	cpi r16,Tcl_ses
+	breq close_session
+
+r_spdu2:
+	clt
+	bld appl_flag,6
+	bld tl_flag,4
+	rjmp r_spdu9		;остальные пакеты игнорировать
+
+
+r_spdu1:
+	ld r16,z+		;проверить, открыта ли сессия для SPDU?
+	ld r16,z+
+	lds r17,(ss_num+0)
+	cp r16,r17
+	brne r_spdu2
+	ld r16,z+
+	lds r17,(ss_num+1)
+	cp r16,r17
+	brne r_spdu2
+
+
+	lds r16,tpdu_size_rx	;вычесть ненужные заголовки из длинны
+	ldi r17,4
+	sub r16,r17
+	sts tpdu_size_rx,r16
+
+	set
+	bld appl_flag,6		;сообщить верхнему уровню > приняты даные
+
+;rcall a_pr2
+
+	clt
+	bld tl_flag,4
+
+r_spdu9:
+	rjmp session_exit
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+close_session:			;закрыть текущую сессию
+	rjmp session_exit
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+spdu_to_host:				;сформировать и передать SPDU хосту
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(TransmittToHost*2)     ;print
+;	ldi zh,high(TransmittToHost*2)
+;	rcall print
+;------------------------------------------------------------------------------
+
+	ldi zh,high(tpdu_buf)
+	ldi zl,low(tpdu_buf)
+
+	clr r16
+	sts tpdu_pntr,r16
+	lds r16,tpdu_size
+	ldi r17,4
+	add r16,r17
+	sts tpdu_size,r16
+
+	ldi r16,$90
+	st z+,r16
+	ldi r16,$02
+	st z+,r16
+	lds r16,(ss_num+0)
+	st z+,r16
+	lds r16,(ss_num+1)
+	st z+,r16
+
+	set
+	bld tl_flag,7
+
+s_t_h1:					;**********************
+	rcall dekoder
+	rcall transport_layer
+;ldi r16,'r'
+;rcall ws
+
+	sbrc tl_flag,7
+	rjmp s_t_h1
+
+	clt
+	bld appl_flag,7			;задача выполнена
+
+
+	rjmp session_exit
+
+;---------------------------------------------
+;
+;---------------------------------------------
+
+txTohost:
+
+	rcall transport_layer
+	sbrc tl_flag,7
+	rjmp txTohostexit
+
+	clt
+	bld appl_flag,7				;задача выполнена
+
+txTohostexit:
+	ret
+;---------------------------------------------
+
+
+
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+;Транспортный уровень программы, Transport Layer
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+;Связь с подлежащими уровнями производится посредством флага appl_flag, 
+;tl_flag, буфера TPDU_buf и указателя его размера TPDU_SIZE
+;-----------------------------------------------------------------------------
+
+transport_layer:
+
+	sbrs appl_flag,0			;если уровень не пройден
+	rcall link_layer	;inicializacija
+
+	sbis pind,zahvat			;если пришли данные от хоста
+	rjmp transport_response
+
+	rcall int_razr		;razreshit preryvanija
+	ret
+
+
+;разбираю что мне делать
+
+transport_response:
+
+	sbrc tl_flag,2				;идет доприем пакета
+	rjmp transport_layer_exit
+
+	sbrs tl_flag,3
+	rjmp priem
+
+	clt
+	bld tl_flag,3
+	rcall int_zapret
+
+;разбираю что мне напередавали
+	lds r16,tpdu_tag
+
+	cpi r16,Tcreate_t_c	;установить соединение.Производится 1 раз
+				; при открытии сессии
+	breq goto_active
+
+	cpi r16,Tdata_last		;пинг от хоста
+	breq pull_data
+
+	cpi r16,T_rcv			;начать передачу данных
+	breq data_rcv
+
+	cpi r16,T_delete		;удалить соединение
+	breq del_tc
+
+	rjmp transport_layer_exit
+
+del_tc:	rjmp delete_tc
+
+
+;если прерывание не наступило и в модуле есть данные
+priem:
+	rcall prm_data
+	rjmp transport_response
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;пришел Tcreate_t_c 
+;нужно ответить на него Tc_t_c_reply
+goto_active:
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(txtNewConnection*2)     ;print
+;	ldi zh,high(txtNewConnection*2)
+;	rcall print
+;------------------------------------------------------------------------------
+	
+	set
+	bld appl_flag,1			;соединение установлено
+
+	lds r16,tc_id
+	sts my_tc_id,r16	;сохранить номер транспортного соединения
+
+	ldi r16,Tc_t_c_reply
+	sts tpdu_tag,r16
+
+	ldi r16,4
+	sts tpdu_size,r16
+
+	ldi zh,high(tpdu_buf)			;пристегнуть T_SB
+	ldi zl,low(tpdu_buf)
+	ldi r16,T_sb
+	st z+,r16
+	ldi r16,2
+	st z+,r16
+	lds r16,my_tc_id
+	st z+,r16
+	ldi r16,$0
+	st z+,r16
+
+	rcall send_data
+	rjmp transport_layer_exit
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;пришел Tdata_last без данных
+;нужно ответить на него T_sb 
+pull_data:
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(Ping*2)     ;print
+;	ldi zh,high(Ping*2)
+;	rcall print
+;ldi r16,'P'
+;rcall ws
+;------------------------------------------------------------------------------
+	rcall send_tsb
+	rjmp transport_layer_exit
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;пришел запрос на вычитывание моих данных
+data_rcv:
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(TxDannToHOST*2)     ;print
+;	ldi zh,high(TxDannToHOST*2)
+;	rcall print
+;------------------------------------------------------------------------------
+
+	sbrs tl_flag,7		;если данных у меня нету, передаю пустой пакет
+	rjmp td_last
+
+
+	ldi r16,Tdata_last
+	sts tpdu_tag,r16
+
+	lds r16,my_tc_id
+	sts tc_id,r16
+
+	lds r16,tpdu_size			;пристегнуть T_SB
+	ldi zh,high(tpdu_buf)
+	ldi zl,low(tpdu_buf)
+	clr r17
+	add zl,r16
+	adc zh,r17
+
+	ldi r17,4
+	add r16,r17
+	sts tpdu_size,r16
+
+	ldi r16,T_sb
+	st z+,r16
+	ldi r16,2
+	st z+,r16
+	lds r16,my_tc_id
+	st z+,r16
+	ldi r16,$0
+	st z+,r16
+
+	rcall send_data				;передаю данные
+
+	clt
+	bld tl_flag,7
+
+	rjmp transport_layer_exit
+
+
+td_last:
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(TXEmptyPacket*2)     ;print
+;	ldi zh,high(TXEmptyPacket*2)
+;	rcall print
+;------------------------------------------------------------------------------
+
+	rcall int_zapret
+	ldi r16,Tdata_last
+	sts tpdu_tag,r16
+	clr r16
+	sts tpdu_size,r16
+	rcall send_data
+
+	rjmp transport_layer_exit
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;хост хочет разорвать транспортное соединение
+delete_tc:
+	ldi r16,Td_t_c_reply
+	sts tpdu_tag,r16
+
+	ldi r16,0
+	sts tpdu_size,r16
+
+	rcall send_data
+
+	clr r16
+	sts my_tc_id,r16
+
+	clt
+	bst appl_flag,1				;соединение закрыто
+
+	rjmp transport_layer_exit
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+transport_layer_exit:
+	sbi porta,FR_pin
+	rcall spi_addr3				;отпустить модуль
+	rcall int_razr
+	ret
+
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;подпрограмма посылает ответ на пинг хоста
+send_Tsb:
+
+	ldi r16,T_sb				;tag
+	sts tpdu_tag,r16
+
+	lds r1,tpdu_size			;сохранить длинну
+	ldi r16,1				;длинна
+	sts tpdu_size,r16
+
+	ldi zh,high(TPDU_buf)
+	ldi zl,low(TPDU_buf)
+	ld r2,z
+	clr r16
+	bst tl_flag,7
+	bld r16,7
+	st z,r16				;SB_value
+
+	clr r16
+	sts tpdu_pntr,r16
+
+	lds r16,my_tc_id
+	sts tc_id,r16
+
+	rcall send_data
+
+
+	ldi zh,high(TPDU_buf)
+	ldi zl,low(TPDU_buf)
+	st z,r2
+	sts tpdu_size,r1
+
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(PingReply*2)     ;print zaderzhka opasna
+;	ldi zh,high(PingReply*2)
+;	rcall print
+;ldi r16,'p'
+;rcall ws
+;
+;mov r16,r4
+;rcall wb
+;mov r16,r5
+;rcall wb
+;mov r16,r6
+;rcall wb
+;rcall wk
+
+
+
+
+;------------------------------------------------------------------------------
+
+	ret
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;запретить все прерывания, особенно INT1
+int_zapret:
+	cli
+	push r16
+
+	in r16,gicr			;запретить прерывание
+	cbr r16,(1<<int1)
+	out gicr,r16
+
+	in r16,gifr			;сбросить флаг прерывания
+	sbr r16,(1<<intf1)
+	out gifr,r16
+
+	;cbi portd,led1
+	pop r16
+	ret
+
+;------------------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------------------------
+
+;разрешить все прерывания и INT1
+int_razr:
+	push r16
+
+	in r16,gicr
+	sbr r16,(1<<int1)
+	out gicr,r16
+
+	in r16,gifr			;сбросить флаги прерывания
+	sbr r16,(1<<intf1)
+	out gifr,r16
+
+	;sbi portd,led1
+	pop r16
+	sei
+	ret
+
+
+;------------------------------------------------------------------------------------------------
+;
+;Подлежащий уровень, Link Layer
+;
+;инициализация модуля. Зависания можно не бояться, т.к. в случае сбоя,
+;хост пересбрасывает САМ модуль и программа начинает работать с самого начала
+;
+;------------------------------------------------------------------------------------------------
+
+link_layer:
+	cli
+
+;ldi r16,'L'
+;rcall ws
+;ldi r16,'['
+;rcall ws
+
+
+
+wait_sr:					;жду команду SR
+	sbis pinc,SR_pin	;(выдать размер буффера)
+	rjmp wait_sr
+
+;ldi r16,'1'
+;rcall ws
+
+
+	cbi porta,FR_pin			;захватить модуль
+	rcall spi_addr3
+
+wait_ZAHVAT:
+	sbic pind,ZAHVAT			;ждать подтверждение захвата
+	rjmp wait_ZAHVAT
+
+;ldi r16,'2'
+;rcall ws
+
+
+	ldi r17,2				;передать размер
+	ldi r16,2
+	rcall spi_pdbyte
+
+	ldi r17,0				;передать данные старший байт
+	ldi r16,$0
+	rcall spi_pdbyte
+
+	ldi r17,0
+	ldi r16,buf_size			;передать данные младший байт
+	rcall spi_pdbyte
+
+
+	ldi r17,2				;перезагрузка счетчика
+	ldi r16,2
+	rcall spi_pdbyte
+
+	sbi porta,DA_pin			;есть данные
+	rcall spi_addr3
+	sbi porta,FR_pin			;отпустить модуль
+	rcall spi_addr3
+
+
+wait_memwrite:					;жду пока данные передадутся
+	sbic pina,DA_out
+	rjmp wait_memwrite
+
+	cbi porta,DA_pin	;net dannyh
+
+;ldi r16,'3'
+;rcall ws
+
+wait_swrite:
+	sbic pind,ZAHVAT		;жду когда мне передадут объем ОЗУ
+	rjmp wait_swrite
+
+wait_swrite1:
+	sbic pinc,HC_pin			;хост отпустил модуль
+	rjmp wait_swrite1
+
+
+
+	sbi porta,FR_pin
+	rcall spi_addr3				;отпустить модуль
+
+
+;ldi r16,'4'
+;rcall ws
+;ldi r16,']'
+;rcall ws
+
+	set
+	bld appl_flag,0				;link layer успешно пройден
+
+	clr r16
+	sts my_tc_id,r16
+
+	rcall int_razr
+	ret
+
+
+;----------------------------------------------------------------------------
+;Может вызываться по внешнему прерыванию (вывод INT1).
+;Прием информации от хоста, вычитывание ее в буфер ОЗУ, автоматическая склейка
+;нарезанных блоков, уровень Transport Layer
+;
+;Входящие данные - прерывание INT1
+;Исходящие данные: данные в буфере приема, 
+;			[flag,3] - конец процедуры
+;			[flag,2] - идет склейка блока данных
+;----------------------------------------------------------------------------
+prm_data:
+	cli 
+	in s_reg,sreg
+	push r13
+	push r14
+	push r15
+	push r16
+	push r17
+	push zh
+	push zl
+
+
+	cbi porta,DA_pin
+	rcall int_zapret		;запрещаю прерывания
+
+
+;ldi r16,$0d
+;rcall ws
+;ldi r16,$0a
+;rcall ws
+;ldi r16,'R'
+;rcall ws
+
+prm_d0:
+	sbic pinc,HC_pin		;жду окончания сеанса
+	rjmp prm_d0
+
+	cbi porta,FR_pin		;переключаю модуль на себя
+
+	ldi r17,2			;читать кол-во байт по приему
+	rcall spi_pmbyte
+;rcall wb
+	tst r16				;кол-во данных = 0!
+	brne prm_d1
+	sbi porta,FR_pin
+	rcall spi_addr3			;отпустить модуль
+	rjmp prm_exit
+
+
+prm_d1:
+	ldi r17,2		;обнулить счетчик адреса альтеры
+	rcall spi_pdbyte
+
+	rcall spi_memrd		;t_c_id
+;rcall wb
+	lds r17,my_tc_id		
+	tst r17			;если 0, то принимать любые пакеты
+	breq prm_d4
+	cp r16,r17
+	breq prm_d4
+	sbi porta,FR_pin
+	rcall spi_addr3		;отпустить модуль
+	rjmp prm_exit		;если номер не мой, то не принимаю пакет
+
+prm_d4:
+	rcall spi_memrd				;M/L
+	mov zl,r16
+;rcall wb
+
+	rcall spi_memrd				;tpdu_tag
+	sts tpdu_tag,r16
+;rcall wb
+
+	rcall spi_memrd				;length_field
+;rcall wb
+	dec r16
+	mov r15,r16			;счетчик длинны чистой информации
+
+	rcall spi_memrd
+	sts tc_id,r16
+;rcall wb
+
+	clr r13
+	tst r15
+	breq prm_d7			;если данных больше нет
+
+
+	clr r13
+	clr r14
+	ldi zh,high(TPDU_buf)
+	ldi zl,low(TPDU_buf)
+prm_d6:					;читаю данные, ложу в буфер
+	rcall spi_memrd
+	st z+, r16
+;rcall wb
+	inc r13				;size
+	inc r14				;pntr
+	dec r15
+	brne prm_d6
+
+	sts TPDU_pntr_rx,r14		;сохранить указатель
+
+
+prm_d7:
+	sts TPDU_size_rx,r13		;размер принятых данных
+	tst r13
+	breq prm_d8
+
+prm_db:
+	set				;если принял некоторое кол-во данных
+	bld tl_flag,4
+
+prm_d8:
+	set
+	bld tl_flag,3			;полностью приняты
+
+prm_exit:
+
+; ldi r16,$0d
+; out udr,r16
+; rcall uart_wait
+; ldi r16,$0a
+; out udr,r16
+; rcall uart_wait
+
+	pop zl
+	pop zh
+	pop r17
+	pop r16
+	pop r15
+	pop r14
+	pop r13
+	out sreg,s_reg
+	sei
+	reti
+
+
+
+
+;----------------------------------------------------------------------------
+; Процедура обработки прерывания по таймеру 0. Проверяем есть ли пакет на прием
+; и, если есть, принимаем его. 
+;----------------------------------------------------------------------------
+;.equ bytes = 1;88		;количество принимаемых байт
+;.equ bits = 8 
+
+;recivePacket:
+;
+;	reti
+
+;----------------------------------------------------------------------------
+;Передача информации хосту, нарезка данных на нужное число кусочков.
+;уровень Transport Layer
+;
+;Входящие данные: TPDU_PNTR, TPDU_SIZE, TPDU_TAG, TC_ID, TPDU_BUF, [Flag,5]
+;Исходящие данные: нет
+;
+;----------------------------------------------------------------------------
+send_data:
+;ldi r16,$0d
+;rcall ws
+;ldi r16,$0a
+;rcall ws
+;
+;ldi r16,'T'
+;rcall ws
+
+	lds r16,tpdu_size
+;rcall wb
+
+;вычисляю размер посылки
+
+	lds r16,tpdu_size
+	ldi r17,5	;(tc_id)+(m/l)+(tpdu_tag)+(length_field)+(tc_id)
+	add r16,r17
+	ldi r17,2			;передать размер посылки
+;rcall wb
+	rcall spi_pdbyte
+
+
+;загрузка данных в память альтеры
+
+	lds r16,my_tc_id			;tc_id
+;rcall wb
+	clr r17
+	rcall spi_pdbyte
+
+
+	clr r16					;m/l
+	bst tl_flag,5
+	bld r16,7
+;rcall wb
+	rcall spi_pdbyte
+
+
+	lds r16,tpdu_tag			;tpdu_tag
+;rcall wb
+	rcall spi_pdbyte
+
+
+	lds r16,tpdu_size			;tpdu_size
+	cpi r16,4
+	brlo not_corr
+	ldi r18,4
+	sub r16,r18
+not_corr:
+	inc r16
+;rcall wb
+	rcall spi_pdbyte
+
+
+	lds r16,my_tc_id			;tc_id
+;rcall wb
+	rcall spi_pdbyte
+
+
+	lds r16,tpdu_size
+	tst r16
+	brne sd5				;если данных нет
+
+	rcall wait_transmission	
+	rjmp send_data_exit
+
+
+;передаю блок данных
+
+sd5:
+
+	lds r18,tpdu_size
+	ldi zh,high(TPDU_buf)		;на каком адресе я остановился
+	ldi zl,low(TPDU_buf)
+
+sd6:
+	ld r16,z+
+	clr r17
+;rcall wb
+	rcall spi_pdbyte
+	dec r18					;буфер переполнен
+	brne sd6
+
+	rcall wait_transmission			;передать данные
+
+	clr r16
+	sts tpdu_size,r16
+	sts tpdu_size_rx,r16
+
+send_data_exit:
+
+;ldi r16,$0d
+;rcall ws
+;ldi r16,$0a
+;rcall ws
+
+	clt
+	bld tl_flag,5
+	bld tl_flag,1
+	ret
+
+
+
+
+;подпрограмма разрешает хосту вычитать данные и ждет пока эта процедура
+; завершится
+;Сильно тормозит !!!! ******************************
+wait_transmission:
+
+	ldi r17,2			;перезагрузка счетчика адреса
+	rcall spi_pmbyte
+	ldi r17,2
+	rcall spi_pdbyte
+
+	sbi porta,DA_pin				;есть данные
+ 	rcall spi_addr3
+
+	sbi porta,FR_pin				;отпустить модуль
+ 	rcall spi_addr3
+
+	;Нанные передаются Хосту
+	set
+	bld tl_flag,6
+
+
+wt1:						;жду пока данные передадутся
+;	sbic pina,DA_out			;ждем пока вычитают данные
+;	rjmp wt1
+;sbi testpin,testpinb	;пин для настройщика
+;	sbic pinc,HC_pin				;жду окончания сеанса
+;	rjmp wt1
+
+;	cbi porta,DA_pin			; снимаем признак "Есть данные на передачу"
+;cbi testpin,testpinb	;пин для настройщика
+
+	ret
+;-----------------------------------------------------------------------------
+;Проверяем вычитал ли хост данные и если ДА - снимаем признаки передачи
+;-----------------------------------------------------------------------------
+tstTXdnn:
+;	sbic pina,DA_out		;ждем пока вычитают данные
+;	rjmp tstTXdnnExit
+;ldi r16,'^'
+;rcall ws
+
+	sbic pina,read_end
+	rjmp tstTXdnnExit;poschitaem ;tstTXdnnExit
+
+
+;ldi r16,'@'
+;rcall ws
+
+
+	sbic pinc,HC_pin	;жду окончания сеанса
+	rjmp tstTXdnnExit
+;poschitali:
+
+	cbi porta,DA_pin	; снимаем признак "Есть данные на передачу"
+	clt							;
+	bld tl_flag,6
+
+
+tstTXdnnExit:
+	ret
+
+;poschitaem:
+;	dec r9
+;	brne tstTXdnnExit
+;	ldi r16,5
+;	mov r9,r16
+;ldi r16,'%'
+;rcall ws
+;
+;	rjmp poschitali
+
+;-----------------------------------------------------------------------------
+;Физический уровень программы
+;-----------------------------------------------------------------------------
+
+;----------------------------------------------------------------------------
+;Передача байта по SPI интерфейсу
+;
+;Входящие данные R17 - адрес
+;Исходящие данные - нет, содержимое R16 меняется
+;----------------------------------------------------------------------------
+spi_pdbyte:
+	push r18
+	push r19
+	mov r19,r17
+	andi r19,$0f
+
+	mov r18,r17
+	swap r18
+	andi r18,$f0
+	or r18,r19
+
+	ldi r19,$a6
+	eor r18,r19
+
+	eor r16,r18
+
+	push r17
+	push r16			;r17-adres,r16-danye,	portit r16
+	rcall sipdbyte
+	sbi str_a_spi,str_a_spib
+	cbi str_a_spi,str_a_spib
+	pop r17
+	rcall sipdbyte
+	sbi strWR_spi,strWR_spib
+	cbi strWR_spi,strWR_spib
+	pop r17
+	pop r19
+	pop r18
+	ret
+
+
+sipdbyte:
+	ldi r16,8		;1
+
+sipdbyt1:
+	cbi do_spi,do_spib	;2
+	sbrc r17,0		;1		13*8=104+8=112 s vyzovom
+	sbi do_spi,do_spib	;2
+
+	sbi clkspi,clkspib	;2		pri 8MHz - 14 us
+	cbi clkspi,clkspib	;2
+	ror r17			;1
+
+	dec r16			;1
+	brne sipdbyt1		;2
+	ret			;4	+3 rcall
+
+
+;----------------------------------------------------------------------------
+;вспомогательная программа прописывает только адрес в SPI интерфейс №3 для фиксации
+;флагов состояния в альтере
+;
+;портит R16 и R17
+;----------------------------------------------------------------------------
+spi_addr3:
+	ldi r17,3
+	rcall sipdbyte
+	sbi str_a_spi,str_a_spib	;фиксация адреса
+	cbi str_a_spi,str_a_spib
+
+	sbi strWR_spi,strWR_spib	;фиксация флагов
+	cbi strWR_spi,strWR_spib
+	ret
+
+
+;----------------------------------------------------------------------------
+;Прием байта по SPI интерфейсу
+;
+;Входящие данные R17 - адрес
+;Исходящие данные R16 - данные
+;----------------------------------------------------------------------------
+spi_pmbyte:
+	push r17			;r17-adres, r16-dannye
+	rcall sipdbyte			;112
+	sbi str_a_spi,str_a_spib
+	nop
+	nop
+
+spi_pmbyte3:
+	sbi clkspi,clkspib	;strob v vyhodnoj sdvig. registr altery
+	cbi str_a_spi,str_a_spib
+	cbi clkspi,clkspib
+
+	ldi r17,8
+spi_pmbyte1:
+	clc			;1	8*11=88+20=108+112=220/8MHz=27.5us
+	sbis di_spi,di_spib;	com r16	;1
+	sec			;1
+	ror r16			;1
+	sbi clkspi,clkspib	;2
+	cbi clkspi,clkspib	;2
+	dec r17			;1
+	brne spi_pmbyte1	;2
+;	swap r16
+;	ldi r17,$69
+;	eor r16,r17
+	pop r17			
+	ret
+
+;----------------------------------------------------------------------------
+;Чтение байта ОЗУ по SPI интерфейсу
+;
+;Входящие данные нет
+;Исходящие данные R16 - данные
+;----------------------------------------------------------------------------
+spi_memrd:
+	push r17
+	ldi r17,5
+	rcall sipdbyte
+	sbi str_a_spi,str_a_spib	;загрузка буфера адреса
+	sbi strWR_spi,strWR_spib	;инкремент счетчика адреса ОЗУ
+	cbi strWR_spi,strWR_spib
+	rjmp spi_pmbyte3
+
+
+;-----------------------------------------------------------------------------
+;Подпрограммы задержек 5 мкс, 25 мкс, 50 мкс
+;
+;используемые регистры: нет
+;Входящие  данные:  нет
+;Исходящие данные:  нет
+;-----------------------------------------------------------------------------
+;delay1s:
+;	ldi xl,low(10000)			;пауза 1 сек
+;	ldi xh,high(10000)
+;d1s:	rcall delay50us
+;	rcall delay50us
+;	sbiw xl,1
+;	brne d1s
+;	ret
+;
+;
+;delay50us:
+;	push r22
+;	ldi r22,130				;50 мкс
+;	rjmp d5us_loop
+;
+;delay25us:
+;	push r22
+;	ldi r22,64				;25 мкс
+;	rjmp d5us_loop
+;
+;delay5us:
+;	push r22
+;	ldi r22,10				;[(10+3*r22)*0.125]uS = 5 мкс
+;d5us_loop:
+;	dec r22
+;	brne d5us_loop
+;	pop r22
+;	ret
+;
+;delay2us:
+;	push r22
+;	ldi r22,2				;[(10+3*r22)*0.125]uS = 2 мкс
+;	rjmp d5us_loop
+
+
+;-----------------------------------------------------------------------------------
+;запись и чтение данных в EEPROM
+;-----------------------------------------------------------------------------------
+mwr:
+	sbic eecr,eewe	;r25:r24-adres r16-dannye
+	rjmp mwr
+
+	out eearh,r25
+	out eearl,r24
+	out eedr,r16
+	sbi eecr,eemwe
+	sbi eecr,eewe
+	ret
+
+mrd:
+	sbic eecr,eewe	;r25:r24-adres r16-dannye
+	rjmp mrd
+	out eearh,r25
+	out eearl,r24
+	sbi eecr,eere	;4 takta-ostanov
+	ldi r16,$0f
+	out eearh,r16
+	ser r16
+	out eearl,r16
+	in r16,eedr
+	ret
+
+
+
+;-----------------------------------------------------------------------------------
+;Процедура загрузки альтеры
+;-----------------------------------------------------------------------------------
+altera_configure:
+
+;--------------- Вывод служебного текста -------------------------------------
+;	ldi zl,low(AlteraLoading*2)     ;print
+;	ldi zh,high(AlteraLoading*2)
+;	rcall print
+;------------------------------------------------------------------------------
+
+	cbi porta,nConfig
+	rcall delay5us
+	rcall delay5us
+	sbi porta,nConfig
+
+	ldi xh,high(zero_burst_bits*2)
+	ldi xl,low(zero_burst_bits*2)
+	
+	ldi yh,high(packed_data*2)
+	ldi yl,low(packed_data*2)
+
+wait_status:
+	sbic pind,nStatus
+	rjmp wait_status
+
+	ldi r19,1
+
+altera_zagr:
+	sbic pind,conf_done
+	rjmp altera_zagr_exit
+
+	tst r19
+	brne azagr1
+
+	adiw xl,1	
+	ldi r19,1
+
+azagr1:
+	movw zl,yl
+	lpm
+	mov r17,r0	;	 r17,z			;загрузить байт
+	adiw yl,1
+	movw zl,xl
+	lpm
+	mov r16,r0	;r16,z			;загрузить указатель
+	and r16,r19
+	brne nulls
+	mov r16,r17
+	rcall spi_pd		;передаю обычный байт
+	rjmp azagr2
+
+nulls:				;передача нулевых байт
+	clr r16
+	rcall spi_pd
+n_loop:
+	rcall spi_pd
+	dec r17
+	brne n_loop
+
+azagr2:
+	clc
+	rol r19
+	rjmp altera_zagr
+
+altera_zagr_exit:
+
+	ldi r17,5			;5 пустых байт для включения альтеры
+	clr r16
+az_ex_loop:
+	rcall spi_pd
+	dec r17
+	brne az_ex_loop
+
+	ret
+
+
+
+
+;передаю байт в альтеру. 
+;Данные младшим битом вперед, защелкивание по фронту тактов.
+spi_pd:
+	ldi r18,8
+spi_loop:
+	cbi porta,data0
+	sbrc r16,0
+	sbi porta,data0
+	
+	sbi porta,dclk
+	cbi porta,dclk
+
+	lsr r16
+
+	dec r18
+	brne spi_loop
+	ret
+
+;-----------------------------------------------------------------------------------
+;обработка PID-кодов текущего канала
+;
+;возвращает в регистре R19 коды для каждого из восьми PIDов: бит = 1 если декодирование 
+;разрешено и 0, если поток запрещено декодировать. Номер PID (по счету) соответствует 
+;номеру бита. В регистре R20 возвращается команда для общего декодирования канала 
+;(CA_enable_flag): код 81h - декодирование разрешено, F1h - декодирование запрещено
+;-----------------------------------------------------------------------------------
+
+PID_analyze:
+
+;пока зво аабпезавлвао найденнле пЁдл
+
+	lds r17,num_pids
+	tst r17
+	brne pid_1
+	ret
+
+pid_1:
+	ldi yh,high(pid_buf)
+	ldi yl,low(pid_buf)
+
+;ldi r16,'('
+;rcall ws
+
+pid_2:
+	ld r16,y+
+;rcall wb
+	ld r16,y+
+;rcall wb
+	dec r17
+	brne pid_2
+
+;ldi r16,')'
+;rcall ws
+
+ldi r20,$81				;разрешаю декодирование программы
+ldi r19,0b11111111		;разрешаю декодирование обеих потоков
+
+	ret
+
+
+
+
+
+;-----------------------------------------------------------------------------
+;Отладочные порграммы и мониторы
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+;Передача байта через UART в виде ASCII.
+;
+;используемые регистры: r16, r17
+;Входящие  данные:  r16
+;Исходящие данные:  нет
+;-----------------------------------------------------------------------------
+
+
+;;распечатка APDU по передаче
+;a_pr1:
+;	cli
+;	ldi r16,'T'
+;	out udr,r16
+;	rcall uart_wait
+;	ldi r16,'*'
+;	out udr,r16
+;	rcall uart_wait
+;
+;
+;	ldi zh,high(apdu_buf)
+;	ldi zl,low(apdu_buf)
+;	ldd r18,z+3
+;	inc r18
+;	inc r18
+;	inc r18
+;
+;	mov r16,r18
+;	rcall wb
+;
+;	ldi r16,'>'
+;	out udr,r16
+;	rcall uart_wait
+;
+;a_l1:
+;	ld r16,z+
+;	rcall wb
+;	dec r18
+;	brne a_l1
+;
+;
+;	ldi r16,$0d
+;	out udr,r16
+;	rcall uart_wait
+;	ldi r16,$0a
+;	out udr,r16
+;	rcall uart_wait
+;
+;	sei
+;	ret
+
+
+;распечатка APDU по приему
+;a_pr2:
+;;	cli
+;	ldi r16,'R'
+;	out udr,r16
+;	rcall uart_wait
+;	ldi r16,'*'
+;	out udr,r16
+;	rcall uart_wait
+;
+;	ldi zh,high(apdu_buf)
+;	ldi zl,low(apdu_buf)
+;
+;	ldd r18,z+3
+;	inc r18
+;	inc r18
+;	inc r18
+;
+;
+;	mov r16,r18
+;	rcall wb
+;
+;	ldi r16,'>'
+;	out udr,r16
+;	rcall uart_wait
+;
+;a_l2:
+;	ld r16,z+
+;	rcall wb
+;	dec r18
+;	brne a_l2
+;
+;
+;	ldi r16,$0d
+;	out udr,r16
+;	rcall uart_wait
+;	ldi r16,$0a
+;	out udr,r16
+;	rcall uart_wait
+;
+;;	sei
+;	ret
+;
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+;Всякие таблицы и константы
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+
+.cseg
+
+
+;буфера пакетов APDU (первый байт - длинна, последующие - информация)
+
+profile_enqury:	.db	  4, $9f, $80, $10, $00		,0
+
+;profile_reply:	.db	 24, $9f, $80, $11, $14, $00, $02, $00 
+;			.db	$41, $00, $03, $00, $41, $00, $20, $00
+;			.db	$41, $00, $24, $00, $41, $00, $40, $00
+;			.db	$41
+
+profile_reply:	.db	 12, $9f, $80, $11, $08, $00, $02, $00 
+			.db	$41, $00, $03, $00, $41		,0
+
+
+;appl_info:		.db	 17, $9f, $80, $21, $0d, $01, $00, $01 
+;			.db	$00, $01, $07, "STV 2.0"
+
+appl_info:		.db	 32, $9f, $80, $21, 28, $01, $00, $01 
+			.db	$00, $01, 22, "STV 2.03 ser.N=0000000"
+	;первый - длина всей посылки, 11й- длина выводимого текста
+
+
+ca_info:		.db	  6, $9f, $80, $31, $02, $d0, $12	,0		;наша система
+;ca_info:		.db	  6, $9f, $80, $31, $02, $05, $00		;Viacess
+
+ca_pmt_reply:	.db	  4, $9f, $80, $33, $04		,0
+					;остальное дописываю сам.
+					; поле длинны прописано вплоть до 
+					;(elementary_pid)
+
+;*****************************************************************************
+
+;.include "MessagesCAM6.asm"		;файл для вывода сообщений 
+.include "altera.asm"				;упакованный файл прошивки
+
+;*****************************************************************************
+.include "cam_boot.avr"
+
+.exit
+

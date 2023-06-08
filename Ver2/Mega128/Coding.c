@@ -1,0 +1,287 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Управляющая программа КОДЕРА
+
+#include "Coding.h"
+
+flash unsigned char device_name[32] =					// Имя устройства
+		"Port Device v1.0";
+eeprom unsigned long my_ser_num = 0;					// Серийный номер устройства
+const flash unsigned short my_version = 0x0100;			// Версия софта 
+eeprom unsigned char my_addr = TO_MON;					// Мой адрес - изначально TO_MON
+
+unsigned char txBuffer [256];		//буффер передатчика
+unsigned char rxBuffer [256];		//буер приемника
+unsigned char lAddrDevice	[64];	// храним лог. адреса подключенных устройств
+															// 0 ячейка - кол-во портов 232 .1 ячейка содержит лог. адрес порта 1, 2-лог.
+															// адрес порта 2 и т. д.
+// Переменные для работы с CF Card
+/*
+typedef struct 				// структура приемного пакета при передаче имени файла
+{
+	char Ptype;               // тип принятого пакета
+	char fname[13];        // имя файла
+} strInPack; */
+
+strInPack * str = (strInPack *)(rx0buf);
+strDataPack * str1 = (strDataPack *)(rx0buf);
+
+FILE *pntr1; 
+
+
+typedef struct _chip_port
+{
+	flash char name[16];
+	flash unsigned char addr;
+} CHIPPORT;
+
+CHIPPORT cp[] = {
+	{"Порт 1", 1},
+	{"Порт 2", 2},
+	{"Порт 3", 3},
+	{"Порт 4", 4}
+};
+
+//-----------------------------------------------------------------------------------------------------------------
+// Возвращаю состояние устройства
+static void GetState(void)
+{
+	register unsigned char i, n, b;
+	
+	#define strq  ((RQ_GETSTATE *)rx0buf)
+
+	switch(strq->page)
+	{
+	case 0:
+		StartReply(2 + 16*(sizeof(cp) / sizeof(CHIPPORT)) + 1);
+
+		putchar0(2);               						 // число доступных страниц, включая эту
+		putchar0(0);										// зарезервирован
+		
+		for (n = 0; n < (sizeof(cp) / sizeof(CHIPPORT)); n ++)
+		{
+			for (i = 0; i < 15; i ++)
+			{
+				b = cp[n].name[i];
+				if (!b)
+				{
+					break;
+				}
+				putchar0(b);
+			}
+			while(i < 15)
+			{
+				putchar0(' ');
+				i++;
+			}
+			
+			putchar0(cp[n].addr);
+		}
+		
+		putchar0(255);
+
+		EndReply();
+		return;
+
+	case 1:
+	
+		StartReply(3 * (sizeof(cp) / sizeof(CHIPPORT)) + 1);
+		
+		for (n = 0; n < (sizeof(cp) / sizeof(CHIPPORT)); n++)
+		{
+			putchar0(n);
+			putchar0(cp[n].addr);
+			putchar0(lAddrDevice [cp[n].addr]);
+		}
+
+		putchar0(255);
+
+		EndReply();
+		return;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Информация об устройстве
+static void GetInfo(void)
+{
+	register unsigned char i;
+	
+	// 	Начинаю передачу ответа
+	StartReply(40);
+	
+	for (i = 0; i < 32; i ++)	// Имя устройства
+	{
+		putchar0(device_name[i]);
+	}
+
+	putword0(my_ser_num);		// Серийный номер
+	putword0(my_ser_num >> 16);	
+	
+	putchar0(my_addr);			// Адрес устройстав
+
+	putchar0(0);				// Зарезервированный байт
+	
+	putword0(my_version);		// Версия
+	
+	EndReply();					// Завершаю ответ
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Смена адреса устройства
+static void SetAddr(void)
+{
+	#define sap ((RQ_SETADDR *)rx0buf)
+	
+	my_addr = sap->addr;
+	
+	StartReply(1);
+	putchar0(RES_OK);
+	EndReply();
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Назначение серийного номера устройства
+static void SetSerial(void)
+{
+	#define ssp ((RQ_SETSERIAL *)rx0buf)
+	
+	if (my_ser_num)
+	{
+		StartReply(1);
+		putchar0(RES_ERR);
+		EndReply();
+		return;
+	}
+	
+	my_ser_num = ssp->num;
+	
+	StartReply(1);
+	putchar0(RES_OK);
+	EndReply();
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Перезагрузка в режим программирования
+static void ToProg(void)
+{
+	// Отправляю ответ
+	StartReply(0);
+	EndReply();
+
+	// На перезагрузку в монитор
+	MCUCR = 1 << IVCE;
+	MCUCR = 1 << IVSEL;
+
+	#asm("jmp 0xFC00");
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Железо процессора в исходное состояние
+static void HardwareInit(void)
+{         
+        twi_init ();      
+		CommInit();				// Инициализация  COM-порта
+		timer_0_Init ();			// Инициализируем таймер 0 (таймаут)
+		portInit();					// Выводы - в исходное состояние
+        
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Сброс периферии
+void ResetPeripherial(void)
+{
+        CRST = 0;
+        delay_ms(10);
+        CRST = 1;
+        delay_ms(500);     //Ждем пока отработают сброс
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Точка входа в программу
+void main(void)
+{
+unsigned char a;   
+
+//	Пока происходят внутренние работы светодиод - красный. По окончании - зеленый.
+
+    LedRed();               
+	HardwareInit();				// Железо процессора
+	ResetPeripherial();		// Сбрасываю периферию 
+
+	#asm("sei")
+
+	UCSR0B.3 = 1;		 				// Разрешаю передатчик UART
+	delay_ms (3000);					// даем время отработать сброс
+	verIntDev();							// Считаем	 количество подчиненных устройств 
+
+// работаем с карточкой...
+	while (!(initialize_media()));		// инициализация CF Card   
+
+	while (1)
+	{
+		LedGreen();
+
+		for (a=1; a<= int_Devices; a++) pingPack (a);	   			// вычитываем у кого что есть
+
+		ReadLogAddr ();				// Вычитываем лог. адреса
+	
+
+		// Проверяю, нет ли пакета и принимаю меры, если есть
+		if (HaveIncomingPack())
+		{
+		if ((rx0addr == my_addr) || (rx0addr == TO_ALL))				// адрес мой 
+			{
+				switch(IncomingPackType())
+					{
+						case PT_GETSTATE:
+								GetState();
+								break;
+				
+						case PT_GETINFO:
+								GetInfo();
+								break;
+				
+						case PT_SETADDR:
+								SetAddr();
+								break;
+				
+						case PT_SETSERIAL:
+								SetSerial();
+								break;
+				
+						case PT_TOPROG:
+								ToProg();
+								break;      
+
+						case PT_RELAY:           			// ретрансляция пакета при программировании
+							    RelayPack();	
+                				break;
+
+						case PT_FLASH:								// пакеты для работы с CF Flash
+							    flash_Work();	
+                				break;
+                			
+						default:
+								DiscardIncomingPack();
+								break;
+					}
+		   }
+		else																	// ретранслируем
+				{                                                                      
+					for (a=1; a<= int_Devices; a++)				// ищем порт по адресу
+						{
+						 	if (lAddrDevice [a]	== rx0addr)
+						 		{
+									LedRed();
+									recompPack (a);		
+									DiscardIncomingPack();        // разрешаем принимать след. пакет
+									delay_ms (50);
+									pingPack (a);	
+									break;
+						 		}
+						}
+				}
+		}
+	}
+}    	
+

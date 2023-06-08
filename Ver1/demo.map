@@ -1,0 +1,45 @@
+CodeVisionAVR C Compiler V1.24.5 Standard
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+e-mail:office@hpinfotech.com
+
+File: C:\Users\Michael\C_CVIS~1\FLASHF~1\FLASHF~2\CVFLAS~1\demo.c
+Global variables memory map:
+
+Variable                          Address   Size
+OCR_REG                              500h      4
+_FF_buff                             504h    512
+PT_SecStart                         R4,R5      2
+BS_jmpBoot                           704h      4
+BPB_BytsPerSec                      R6,R7      2
+BPB_SecPerClus                         R8      1
+BPB_RsvdSecCnt                     R9,R10      2
+BPB_NumFATs                           R11      1
+BPB_RootEntCnt                    R12,R13      2
+BPB_FATSz16                          708h      2
+BPB_FATType                           R14      1
+BPB_TotSec                           70Ah      4
+BS_VolSerial                         70Eh      4
+BS_VolLab                            712h     12
+_FF_PART_ADDR                        71Eh      4
+_FF_ROOT_ADDR                        722h      4
+_FF_DIR_ADDR                         726h      4
+_FF_FAT1_ADDR                        72Ah      4
+_FF_FAT2_ADDR                        72Eh      4
+_FF_RootDirSectors                   732h      4
+FirstDataSector                      736h      2
+FirstSectorofCluster                 738h      4
+_FF_error                            73Ch      1
+_FF_buff_addr                        73Dh      4
+DataClusTot                          741h      4
+rtc_hour                             745h      1
+rtc_min                              746h      1
+rtc_sec                              747h      1
+rtc_date                             748h      1
+rtc_month                            749h      1
+rtc_year                             74Ah      2
+clus_0_addr                          74Ch      4
+_FF_n_temp                           750h      4
+c_counter                            754h      2
+_FF_FULL_PATH                        756h    100
+FILENAME                             7BAh     12

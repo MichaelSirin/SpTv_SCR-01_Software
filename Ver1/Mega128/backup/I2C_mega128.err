@@ -1,0 +1,15 @@
+Creating   'i2c_mega128.eep'
+Creating   'i2c_mega128.obj'
+Creating   'i2c_mega128.lst'
+
+Assembling 'i2c_mega128.asm'
+Including  'i2c_mega128.vec'
+Including  'i2c_mega128.inc'
+
+Program memory usage:
+Code             :  438 words
+Constants (dw/db):    1 words
+Unused           :    0 words
+Total            :  439 words
+
+Assembly complete with no errors.

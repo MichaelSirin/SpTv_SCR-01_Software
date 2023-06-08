@@ -1,0 +1,233 @@
+////////////////////////////////////////////////////////////////////////////
+// секция формирования пакета закрытия
+
+#include "Coding.h"
+
+#define koef_pd_kl 		0x7//3//1//3
+#define Koef_men_kl 	0x7f//07//03//7
+#define  kolvo_ciklov		0x04			// цикличность передачи циклового пакета
+//#define Koef_men_kl 0x7f
+//#define Koef_pd_soft 0x1	//max skorost if 01
+
+
+
+u8 kluchi_koderu[8] = {0x2,0x45,0x1,0x89,0x6,0x42,0x5,0xf6};//wyh буффер na kluchi
+u8 kluchi_dekoderu[16];//wyh буффер na kluchi
+
+u16 gshch1 	=	0xCD;	//shumovoe chislo-jachejka генераторa случайных чисел 1	kluch1  confkluch1;	
+u16 gshch2	=	0xAE;	//jachejka генераторa случайных чисел 2	kluch2	confkluch2;	
+u16 gshch3	=	0xBA;	//jachejka генераторa случайных чисел 3 for kazakov
+u16 gshch4	=	0x35;		//jachejka генераторa случайных чисел 4 dlja maskirovki
+u16 gshch5	=	0x43;		//jachejka генераторa случайных чисел 5 dlja maskirovki
+u16 gshch6;					//декодирование файла mask.chm
+u16 gshch7	=	0x166;	//генерация ключа
+
+
+int confkluch1 = 0xb2;;		//konfiguracija gen klucha1
+int confkluch2 = 0xa6;		//konfiguracija gen klucha2
+int krutnut		=	0x7;
+int ver_kl		=	0x7d;
+
+u8	komu;	//=0x25-paket koderu,0x26-paket v liniju
+u8 schetchic_paketov_zakrytija = 0;//для 4-го байта пакета
+int kolvo_abonentov		=0;
+u8 kolvo_stvolov	=	0;
+
+u8 scrambCond = TX_g_p_koderu;		// текущее состояние скремблера
+
+u8 N_sektora		=	122;//pri programirovanii
+u8 ver_zeleza	=	0;
+u8 flag_est_obnovlenie_flash	=	1;
+u8 flag_est_obnovlenie_eeprom;
+int l_flash;							//длина флеша для прог.
+//u8 tip;	
+u8 pozklucha;
+int count_paket	=	0;// счетчик пакетов для организации циклов передачи спец.пакетов
+u16 schetchic_abonentov;
+#define time_OFF_scremb 2000000		//таймаут между принятым по UART пакету и работой внутр скремблера
+
+
+// При работе с COM портом не работает скремблер 
+void	scrambOff (void)
+{
+		EndTimePack = 0;		// сброс признака
+		
+		TCCR3A=0x00;			// делитель до 7.813кГц (128uS)
+		TCCR3B=0x05;
+
+		TCNT3H=(0xFFFF - (time_OFF_scremb/128)) >>8;			// иниц. величины 8с
+		TCNT3L=0xFFFF - (time_OFF_scremb/128);			// иниц. величины 8с
+}
+
+// возвращает число введенных абонентов
+u32 getAbons (void)
+{ 
+	u32 a = 0;
+
+				if (fseek (fu_user, 0, SEEK_SET) == EOF) 
+				{
+
+				#ifdef print
+				printf("getAbons - ERROR\n\r");
+	 			#endif
+
+					return 0 ;//поставить указатель на начало файла
+				}
+
+				kolvo_abonentov = fgetc(fu_user);
+				kolvo_abonentov |= fgetc(fu_user)*256;
+				kolvo_abonentov |= fgetc(fu_user)*256*256;
+				kolvo_abonentov |= fgetc(fu_user)*256*256*256;         
+				
+                return kolvo_abonentov;
+}
+
+
+u8 scrambling (void)
+{
+		u32 a;
+		static u8 count_ciklovogo = 0;		// для счета цикловых пакетов  
+
+		switch (scrambCond)
+		{
+			case startScremb:
+				eefprog=f_buff_prog;            //поставить указатель на начало 
+				kolvo_stvolov= *eefprog++;
+
+				#ifdef print
+				printf("kolvo_stvolov=%d \n\r",kolvo_stvolov);
+		 		#endif
+
+				kolvo_abonentov = getAbons();
+	
+				#ifdef print
+				printf("kolvo_abonentov=%d \n\r",kolvo_abonentov);
+				#endif
+
+				schetchic_abonentov = 0;
+				scrambCond = TX_g_p_razresh;				// переходим к передаче пакетов абонентам
+				break;
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_g_p_razresh:
+				if (schetchic_abonentov < kolvo_abonentov)
+				{
+					#ifdef print
+					printf("Generation g_p_razresh No- %d \n\r",schetchic_abonentov);
+					#endif
+			 		g_p_razresh();													//генерация пакета разрешений
+			 		schetchic_abonentov++;
+					count_paket++;
+
+					if ((count_paket & koef_pd_kl)==0)						// Генерация 
+					{
+					 	scrambCond = TX_g_p_kluchi;
+					 	break;
+					}
+				}	
+//				else scrambCond = TX_g_p_flash; 	// переходим к передаче обновления ПО	
+				else 	scrambCond = TX_g_p_ciklovogo; 	// переходим к передаче  циклового пакета
+
+				break;
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_g_p_kluchi:                
+				#ifdef print
+				printf("Generation g_p_kluch...\n\r ");
+				#endif
+				g_p_kluchi();             
+				if ((count_paket & Koef_men_kl)==0)					// Генерация 
+				{
+//					if (count_paket & (Koef_men_kl+1)) scrambCond = TX_men_ver_kl;
+					if (count_paket & (Koef_men_kl+1)) 
+					{
+						#ifdef print
+						printf("Generation men_ver_k... \n\r");
+						#endif
+					 	men_ver_kl();
+
+						scrambCond = TX_g_p_razresh; 	
+					}
+					else 	scrambCond = TX_g_p_koderu;
+					break;
+				}
+
+				scrambCond = TX_g_p_razresh; 	
+				break;                        
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_men_ver_kl:			
+				#ifdef print
+				printf("Generation men_ver_k... \n\r");
+				#endif
+			 	men_ver_kl();
+
+				scrambCond = TX_g_p_razresh; 	
+				break;                        
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case	TX_g_p_koderu:
+				#ifdef print
+				printf("Generation g_p_koderu... \n\r");
+				#endif
+				g_kod();							//подготовка ключей кодеру     
+				g_p_koderu();					//кодирование и передача пакета
+
+				scrambCond = TX_g_p_flagov; 	
+				break;                        
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_g_p_flagov:
+				#ifdef print
+				printf("Generation g_p_flagov... \n\r");
+				#endif
+				g_p_flagov();
+
+				scrambCond = TX_g_p_razresh; 	
+
+				break;                        
+				////////////////////////////////////////////////////////////////////////////////////////////////
+/*			case TX_g_p_flash:
+
+				scrambCond = TX_g_p_obnovlenie; 	// переходим к передаче обновления ПО	
+				break;
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_g_p_obnovlenie:
+				// Генерация 
+				if ((count_paket & Koef_pd_soft)==0)
+				{
+					if (flag_est_obnovlenie_flash==1)
+					{
+						#ifdef print
+						printf("N_sec=%d ...\n\r" ,N_sektora);
+						#endif
+//						g_p_progf();				//генерация пакета флэш
+					}
+
+					if (flag_est_obnovlenie_eeprom ==1)
+					{	
+			//			g_p_proge(port);//генерация пакета   ЕЕПРОМ
+						#ifdef print
+						printf("g_p_proge...\n\r  " );
+						#endif
+					}
+				}	
+
+				scrambCond = TX_g_p_ciklovogo; 	// переходим к передаче  циклового пакета
+				break;*/
+
+				////////////////////////////////////////////////////////////////////////////////////////////////
+			case TX_g_p_ciklovogo:
+				#ifdef print
+				printf("\n\r-------------------------Generation g_p_ciklovogo...-------------------- \n\r");
+				#endif
+				if (count_ciklovogo >= kolvo_ciklov)
+				{
+				  	 	g_p_ciklovogo();
+				  	 	count_ciklovogo = 0;
+				}                                    
+				else count_ciklovogo ++; 
+
+				scrambCond = startScremb;	//  переходим к установке стартовых параметров
+				break;
+
+			default: break;
+		}
+
+		return TRUE;		
+}

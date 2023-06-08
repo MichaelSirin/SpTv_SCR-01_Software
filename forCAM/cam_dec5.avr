@@ -1,0 +1,984 @@
+;mac=(inversija sernoH)*32768 + (serno-1)*2
+
+;
+; Переделaл все с линейной программы в подпрограммы
+
+
+.equ ver_po =2
+.equ copyflash=$3f20
+.equ write_page=$3f70
+.equ tstks_flash=$3fc8
+
+.equ mac=$3ffc
+.equ mach=$3ffe
+.equ nomver_zeleza=mac+1
+.equ endsek=123
+.equ N_ciklovyh=3;количество принятых цикловых пакетов,и не принятых
+;разрешительных после которых декодирование отключается
+
+.equ pozkl=(26)
+
+.cseg
+
+.equ tekstvol=num_pids+1;18;16????????????
+;.equ tekstvol=pid_buf+64;18;16????????????
+.equ kluchi_dekoderu=tekstvol+1	;ds 16
+
+.equ kluch1=kluchi_dekoderu+17	;konveernyj registr(novyj kluch zapominaetsja
+				;staryj ispolzuetsja
+.equ shum2=kluch1+1;db
+
+.equ config2=shum2+1;db
+.equ config1=config2+1;db
+
+.equ N_sektora=config1+1;db
+.equ tek_ver_po =N_sektora+1
+
+.equ razreshit=tek_ver_po+1	;ds 128 byte
+
+.equ bufprog=razreshit+129	;ds 129	??????	нельзя трогать буфера!!!!
+
+.equ bufpaket=bufprog+129	;ds 188
+
+.equ tip=bufpaket+188	;db
+.equ count_ciklovogo_paketa=tip+1
+
+.equ pid_buf =count_ciklovogo_paketa+1;num_pids+1;буфер для накопления
+; найденных PID, 16 байт???
+
+.equ bbb=pid_buf+32
+
+
+
+;flagi
+;.def fl_pmcikl=r12
+;.equ fl_pmciklb=1,0		;schetchik priema ciklovogo paketa
+
+
+.def nado_obnov=r12
+.equ nado_obnovb=0		; nado obnovit flash
+
+
+
+
+;.def N_byta=r10
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;START PROGRAM CODE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inidecoder:
+
+	clr r12			;flagi
+
+	sts tekstvol,r12
+	ldi r16,N_ciklovyh
+	sts count_ciklovogo_paketa,r16
+
+;ldi r16,'w'
+;rcall ws
+
+	ldi zh,high(kluchi_dekoderu)
+	ldi zl,low(kluchi_dekoderu)
+	ldi r25,high(e_kluchi_dekoderu)
+	ldi r24,low(e_kluchi_dekoderu)
+	ldi r19,15
+
+	cli
+
+copykluch:
+	rcall mrd
+	st z+,r16
+	adiw r24,1
+	dec r19
+	brne copykluch
+
+	lds r16,(kluchi_dekoderu+1)
+
+	sts config2,r16
+
+;ldi r16,'&'
+;call ws
+
+	ldi r17,16
+	ldi zh,high(kluchi_dekoderu+7)
+	ldi zl,low(kluchi_dekoderu+7)
+	ldi r19,8;15
+
+inidec:
+	ld r16,z+
+	rcall spi_pdbyte
+	inc r17
+	dec r19
+	brne inidec
+	
+;	sbi portb,IREQ				;отпускаю модуль
+
+	sei 
+	rjmp application_layer
+
+	;ret
+;--------------------------------------------------------
+
+
+application_layer1:
+
+;	pop r20
+;	pop r19
+;	pop r18
+;	pop r17
+;	pop r16
+
+	sei
+
+;cbi testpin,testpinb	;пин для настройщика
+
+	ret
+;	rjmp application_layer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dekoder:
+
+;sbi testpin,testpinb	;пин для настройщика
+
+	cli					;запрещаем прерывания
+
+;	push r16
+;	push r17
+;	push r18
+;	push r19
+;	push r20
+
+
+	ldi r17,4
+	rcall spi_pmbyte
+	mov r17,r16
+	clc
+	ror r16
+	asr r16
+
+	lds r19,tekstvol
+	cp r19,r16
+	breq old_stvol
+
+	sts tekstvol,r16
+;rcall wb
+;mov r16,r19
+;rcall wb
+;ldi r16,'s'
+;call ws
+
+	rcall zagruz_razreshen
+
+old_stvol:
+	andi r17,$01
+	breq application_layer1
+
+
+;ldi r16,'p'
+;rcall ws
+
+;lds r16,num_pids
+;rcall wb
+
+
+	ldi r17,5;0;5		;prinjat paket dekoderu
+	ldi r19,183
+	ldi zh,high(bufpaket+6);1);6)
+	ldi zl,low(bufpaket+6);1);6)
+
+chitaempaket:
+
+	rcall spi_pmbyte
+;call wb
+	st z+,r16
+	inc r17
+	dec r19
+	brne chitaempaket
+
+	ldi xh,high(bufpaket+pozkl)
+	ldi xl,low(bufpaket+pozkl)
+	ld r16,x
+	mov r8,r16
+
+;rcall wb
+;ldi r16,'?'
+;call ws
+
+	sts shum2,r8
+	rcall gen_shum2
+
+	ldi xh,high(bufpaket+17)	;ver_po
+	ldi xl,low(bufpaket+17)
+	ld r16,x
+	eor r16,r18	;tek_ver_po
+	sts tek_ver_po,r16
+
+	ldi zh,high(poz_ver_po*2)
+	ldi zl,low(poz_ver_po*2)
+	lpm		;ver_po kotoraja rabotaet
+	cp r0,r16
+	breq raskrutka_paket0;pm_tip
+;mov r16,r0
+;rcall wb
+;ldi r16,'w'
+;call ws
+
+	ldi zh,$40	;$20*2
+	ldi zl,low(poz_ver_po*2)
+	lpm
+	cp r0,r16
+	brne raskrutka_paket0;pm_tip
+
+	set
+	bld nado_obnov,nado_obnovb
+	rjmp new_prog
+
+raskruterrcrc:
+	rjmp application_layer1
+
+;pm_tip:
+;	ldi xh,high(bufpaket+29)
+;	ldi xl,low(bufpaket+29)
+;	ld r16,x
+;
+;	eor r16,r8
+; 	com r16		;tip
+;	sts tip,r16
+
+raskrutka_paket0:
+
+;ldi r16,'v'
+;call ws
+	lds r16,(bufpaket+7)
+	andi r16,$0f
+	ldi r17,171
+	add r16,r17
+
+	ldi zh,high(bufpaket)
+	ldi zl,low(bufpaket)
+	clr r17
+	add zl,r16
+	adc zh,r17
+	ld r20,z
+	lds r21,(bufpaket+10)
+	eor r21,r20
+
+	ldi r19,144
+	ldi zh,high(bufpaket+27)
+	ldi zl,low(bufpaket+27)
+
+raskrutpaket:			;raskruchivaet tek paket
+	mov r17,r20
+	and r17,r21
+   	mov r18,r17
+
+	ldi r16,7
+krutim3:
+	lsr r18
+	eor r17,r18
+	dec r16
+	brne krutim3
+
+	lsr r17
+	rol r20		;r20-shum
+;ldi r16,' '
+;rcall ws
+	ld r16,z
+	eor r16,r20
+	com r16
+	st z+,r16
+;rcall wb
+	dec r19
+	brne raskrutpaket
+
+	ldi r19,143
+	ldi zh,high(bufpaket+27)
+	ldi zl,low(bufpaket+27)
+
+	clr r17
+	clr r18
+raskrutprovks:
+	ld r16,z+
+	add r17,r16
+	brcc raskrutprovks1
+	inc r18
+raskrutprovks1:
+	dec r19
+	brne raskrutprovks
+
+	ld r16,z+
+	add r18,r16
+;mov r16,r18
+;rcall wb
+;mov r16,r17
+;rcall wb
+	inc r17
+	brne raskruterrcrc
+	inc r18
+	brne raskruterrcrc
+
+
+
+
+;ldi r16,','
+;rcall ws		;проверка потерь пакетов
+			;на передаче надо в [8] передать счетчик
+;lds r17,bbb
+;inc r17
+;sts bbb,r17
+;lds r16,(bufpaket+8)
+;cp r16,r17
+;breq abbb
+
+;push r16
+;ldi r16,'n'
+;rcall ws
+;pop r16
+;rcall wb
+;mov r16,r17
+;rcall wb
+;ldi r16,' '
+;rcall ws
+;lds r16,(bufpaket+8)
+;sts bbb,r16
+
+;abbb:
+
+
+ldi r16,'v'
+rcall ws
+lds r16,(bufpaket+23)
+rcall wb
+
+
+
+;ldi r16,'t'
+;rcall ws
+
+	lds r16,(bufpaket+29);tip
+;rcall wb
+
+	cpi r16,1
+	breq progflash
+	cpi r16,2
+	breq progeeprom
+
+	cpi r16,5
+	breq pm_kluch1
+	cpi r16,6
+	breq pm_razreshen1
+	cpi r16,8
+	breq prinat_ciklovoj_paket	
+
+
+nemoe_zelezo:
+	rjmp application_layer1
+
+pm_kluch1:
+	rjmp pm_kluch
+pm_razreshen1:
+	rjmp pm_razreshen
+
+prinat_ciklovoj_paket:
+
+;ldi r16,'c'
+;rcall ws
+	lds r16,count_ciklovogo_paketa
+;rcall wb
+	dec r16
+	sts count_ciklovogo_paketa,r16
+	brne nemoe_zelezo
+;ldi r16,'o'
+;rcall ws
+
+	ldi r25,high(e_razreshit)
+	ldi r24,low(e_razreshit)
+	ldi r19,124
+zapret_decodera:
+	rcall mrd
+	tst r16
+	breq zapret_decodera1
+	clr r16
+	rcall mwr
+
+zapret_decodera1:
+	adiw r24,1
+	dec r19
+	brne zapret_decodera
+	rcall zagruz_razreshen
+	rjmp application_layer1
+
+progeeprom:
+progflash:
+	mov r20,r16	;tip
+
+	lds r16,(bufpaket+27);	;ver_zeleza
+;rcall wb
+	ldi zh,high(nomver_zeleza*2)
+	ldi zl,low(nomver_zeleza*2)
+	lpm
+;push r16
+;mov r16,r0
+;rcall wb
+;pop r16
+	cp r16,r0
+	brne nemoe_zelezo
+
+;mov r16,r20
+;rcall wb
+;ldi r16,'t'
+;rcall ws
+
+	cpi r20,1
+	breq progflash1
+
+	ldi r19,128
+	ldi zh,high(bufpaket+32)
+	ldi zl,low(bufpaket+32)
+	clr r24
+	clr r25
+
+provcope:
+	rcall mrd
+	mov r17,r16
+	ld r16,z+
+;rcall wb
+	cpse r16,r17
+	rcall mwr
+
+	adiw r24,1
+	dec r19
+	brne provcope
+errcrcprog:
+	rjmp application_layer1
+
+
+progflash1:
+	lds r16,(bufpaket+28)	;N_sektora
+	sts N_sektora,r16
+;rcall wb
+;ldi r16,'N'
+;rcall ws
+;lds r16,N_sektora
+
+	clr zl
+	ldi zh,$80
+	add zh,r16
+	clc
+	ror zh
+	ror zl
+	asr zh
+	ror zl
+
+;ldi r16,':'
+;rcall ws
+;mov r16,zh
+;rcall wb
+;mov r16,zl
+;rcall wb
+
+	mov r24,zl
+	mov r25,zh
+;ldi r16,'$'
+;rcall ws
+	ldi r19,128
+	ldi yh,high(bufpaket+32)
+	ldi yl,low(bufpaket+32)
+	lsl zl
+	rol zh
+provcopf:
+	lpm r0,z+
+	ld r17,y+
+	cp r0,r17
+	brne nesovpalo
+	dec r19
+	brne provcopf
+
+;ldi r16,'@'
+;rcall ws
+
+	rjmp fsovpalo
+
+nesovpalo:
+;ldi r16,'N'
+;rcall ws
+;lds r16,N_sektora
+;rcall wb
+
+	ldi yh,high(bufpaket+32)
+	ldi yl,low(bufpaket+32)
+	mov zl,r24
+	mov zh,r25
+	call write_page
+
+ldi r16,'+'
+rcall ws
+	set
+	bld nado_obnov,nado_obnovb
+
+fsovpalo:
+	lds r16,N_sektora
+	cpi r16,endsek
+	brne neendsek
+
+new_prog:
+;ldi r16,'%'
+;rcall ws
+
+	ldi zh,$40	;$20*2
+	clr zl
+	call tstks_flash
+	brne errks
+	sbrs nado_obnov,nado_obnovb
+	rjmp neendsek
+;ldi r16,'^'
+;rcall ws
+
+	ldi zh,$40	;$20*2
+	ldi zl,low(poz_ver_po*2)
+	lpm
+;mov r16,r0
+;rcall wb
+
+	lds r16,tek_ver_po
+;rcall wb
+
+	cp r0,r16
+	brne neendsek
+
+
+ldi r16,'!'
+rcall ws
+
+jmp copyflash
+
+;aaa
+errks:
+neendsek:
+esovpalo:
+
+	rjmp application_layer1
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+adr_nemoj:
+	rjmp application_layer1
+
+;qqq
+pm_razreshen:
+	ldi xh,high(bufpaket+32)
+	ldi xl,low(bufpaket+32)
+
+	ldi zh,high(mac*2)	;7 mlad bit
+	ldi zl,low(mac*2)
+;ldi r16,'N'
+;rcall ws
+	ld r16,x+			;adr0
+;rcall wb
+	lpm r19,z+
+	cp r16,r19
+	brne adr_nemoj
+	lpm r19,z+
+	ld r16,x+			;adr1
+;rcall wb
+	cp r16,r19
+	brne adr_nemoj
+	adiw zl,2
+	lpm r19,z+
+	com r19
+	ld r16,x+			;adr2
+;rcall wb
+	cp r16,r19
+	brne adr_nemoj
+	lpm r19,z
+	com r19
+	ld r16,x+			;adr3
+;rcall wb
+	cp r16,r19
+	brne adr_nemoj
+
+;adr_moj:
+
+;ldi r16,'a'
+;rcall ws
+	ldi zh,high(razreshit)
+	ldi zl,low(razreshit)
+	ldi r19,124
+copyrazresh:
+	ld r16,x+
+	st z+,r16
+;rcall wb
+	dec r19
+	brne copyrazresh
+
+	ldi zh,high(razreshit)
+	ldi zl,low(razreshit)
+	ldi r25,high(e_razreshit)
+	ldi r24,low(e_razreshit)
+	ldi r19,124
+copy_e_razresh:
+	ld r17,z+
+	rcall mrd
+	cp r16,r17
+	breq razresh_neizmen
+	mov r16,r17
+	rcall mwr
+;rcall wb
+
+razresh_neizmen:
+	adiw r24,1
+	dec r19
+	brne copy_e_razresh
+
+	rcall zagruz_razreshen
+
+	ldi r16,N_ciklovyh
+	sts count_ciklovogo_paketa,r16
+
+	rjmp application_layer1
+
+pm_kluch:
+
+;ldi r16,'y'
+;rcall ws
+
+	ldi yh,high(bufpaket+32)	;razbiraemsja s kluchami
+	ldi yl,low(bufpaket+32)
+	ldi zh,high(kluchi_dekoderu)
+	ldi zl,low(kluchi_dekoderu)
+	ldi r19,15
+raskrutkl:
+	ld r16,y
+	st z+,r16
+;rcall wb
+	adiw yl,3
+	dec r19
+	brne raskrutkl
+
+kluchi_prinjaty:
+;ldi r16,'o'
+;rcall ws
+	lds r16,(kluchi_dekoderu+1)
+	sts config2,r16
+
+	lds r18,(kluchi_dekoderu+4)
+	clr r25
+	ldi r24,low(eN_stvolov)
+	rcall mrd
+	cp r16,r18
+	breq stvoly_neizmen
+	mov r16,r18
+	rcall mwr
+stvoly_neizmen:
+
+	ldi zh,high(kluchi_dekoderu+7)
+	ldi zl,low(kluchi_dekoderu+7)
+
+	ldi r17,16
+	ldi r19,8
+zagruz_kluch:
+	ld r16,z+
+	rcall spi_pdbyte
+	inc r17
+	dec r19
+	brne zagruz_kluch
+
+;ldi r16,'j'
+;rcall ws
+
+kluchi_neizmen:
+
+	rjmp application_layer1
+
+
+
+
+;subprograms------------------------------------------------------------------------
+
+
+zagruz_razreshen:
+
+	push r25
+	push r24
+	push r19
+	push r18
+	push r17
+	push r16
+;ldi r16,'g'
+;rcall ws
+
+	lds r16,tekstvol
+	dec r16
+	lsl r16
+	ldi r25,high(e_razreshit)
+	ldi r24,low(e_razreshit)
+	clr r19
+	add r24,r16
+	adc r25,r19
+	rcall mrd
+	mov r18,r16
+
+	ser r16
+
+	sbrc r18,0
+	andi r16,$f0
+	sbrc r18,1
+	andi r16,$1f
+	ldi r17,24
+;rcall wb
+	rcall spi_pdbyte
+
+	ser r16
+	sbrc r18,2
+	andi r16,$f2
+	sbrc r18,3
+	andi r16,$3f
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	ser r16
+	sbrc r18,4
+	andi r16,$f4
+	sbrc r18,5
+	andi r16,$5f
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	ser r16
+	sbrc r18,6
+	andi r16,$f6
+	sbrc r18,7
+	andi r16,$7f
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	adiw r24,1
+	rcall mrd
+	mov r18,r16
+
+	ser r16
+	sbrc r18,0
+	andi r16,$f8
+	sbrc r18,1
+	andi r16,$9f
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	ser r16
+	sbrc r18,2
+	andi r16,$fa
+	sbrc r18,3
+	andi r16,$bf
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+
+	ser r16
+	sbrc r18,4
+	andi r16,$fc
+	sbrc r18,5
+	andi r16,$df
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	ser r16
+	sbrc r18,6
+	andi r16,$fe
+
+	inc r17
+;rcall wb
+	rcall spi_pdbyte
+
+	pop r16
+	pop r17
+	pop r18
+	pop r19
+	pop r24
+	pop r25
+	ret
+
+
+;-----------------------------------------------------------------------------------
+
+
+gen_shum2:			;raskruchivaet tek paket
+	push r16		;shum2-nachalnoe chislo, config2
+	push r17
+	lds r17,shum2
+	lds r16,config2
+	and r17,r16
+   	mov r18,r17
+
+	ldi r16,7
+krutim2:
+	lsr r18
+	eor r17,r18
+	dec r16
+	brne krutim2
+
+	lds r18,shum2
+	lsr r17
+	rol r18		;r18-otvet
+	sts shum2,r18
+;mov r16,r18
+;rcall wb
+
+	pop r17
+	pop r16
+	ret
+
+
+
+;-----------------------------------------------------------------------------------
+;-----------------------------------------------------------------------------------
+wb:			;Ёз r16
+	push r16
+
+	swap r16
+	rcall wb1
+	pop r16
+
+rcall wb1
+push r16
+ldi r16,' '
+rcall ws
+pop r16
+ret
+
+
+wb1:
+	push r16
+	push r18
+	andi r16,$0f
+	cpi r16,$0a
+	brcs wb2
+	ldi r18,$7
+	add r16,r18
+wb2:
+	ldi r18,$30
+	add r16,r18
+	rcall ws
+	pop r18
+	pop r16
+	ret
+
+
+wywuart:
+ws:
+	sbis ucsra,udre		;uart pd rdy?
+	rjmp wywuart
+	out udr,r16
+call delay10ms
+	ret
+
+
+
+;-----------------------------------------------------------------------------
+;Подпrогrаммa задеrжек 5 мкs, 25 мкs, 50 мкs
+;-----------------------------------------------------------------------------
+
+
+delay100ms:
+	push xl
+	push xh
+	ldi xl,low(1000)			;пагза 0.1 бек
+	ldi xh,high(1000)
+	rjmp d1s
+
+delay10ms:
+	push xl
+	push xh
+	ldi xl,low(10)			;пагза 0.01 бек
+	ldi xh,high(10)
+d1s:	rcall delay50us
+	rcall delay50us
+	sbiw xl,1
+	brne d1s
+	pop xh
+	pop xl
+	ret
+
+
+delay50us:
+	push r22
+	ldi r22,130				;50 мкб
+	rjmp d5us_loop
+
+delay5us:
+	push r22
+	ldi r22,10				;[(10+3*r22)*0.125]uS = 5 мкб
+d5us_loop:
+	dec r22
+	brne d5us_loop
+	pop r22
+	ret
+
+
+;-----------------------------------------------------------------------------------
+;-----------------------------------------------------------------------------------
+.eseg
+.org 0
+.db $ff,$ff
+
+e_kluchi_dekoderu:
+.db $b2,$a6,$7,$2,$9,$0,$0
+
+e_kluchi_v_registry:
+.db $2,$45,$1,$89,$6,$42,$5,$f6
+
+;e_pozinf:
+;.db 168	;adres kluchej mlad byte
+
+eN_stvolov:
+.db 8
+
+;eN_abonentov:
+;.db 1
+
+;econfig1:
+;.db $b2
+
+
+	.db $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+
+
+
+
+.org 128
+
+e_razreshit:				;ds 124 byte
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+	.dw $ffff,$ffff,$ffff,$ffff,$ffff,$ffff
+
+
+
+.cseg

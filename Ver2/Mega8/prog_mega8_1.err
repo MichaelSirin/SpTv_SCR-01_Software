@@ -1,0 +1,16 @@
+Creating   'prog_mega8_1.eep'
+Creating   'prog_mega8_1.obj'
+Creating   'prog_mega8_1.lst'
+
+Assembling 'prog_mega8_1.asm'
+Including  'prog_mega8_1.vec'
+Including  'prog_mega8_1.inc'
+
+Program memory usage:
+Code             :  169 words
+Constants (dw/db):    1 words
+Unused           :    0 words
+Total            :  170 words
+
+Assembly complete with no errors.
+Deleting   'prog_mega8_1.eep'

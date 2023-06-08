@@ -1,0 +1,260 @@
+////////////////////////////////////////////////////////
+// Функции работы с TWI
+
+#include "coding.h"
+
+
+// Считаем CRC пакета
+unsigned char calc_CRC (unsigned char *Position_in_Packet)
+{                    
+	unsigned char CRC = 0, a;                                   
+
+	a = *Position_in_Packet ;
+	
+	while(a--)
+	{
+		CRC += *Position_in_Packet++;
+	}
+
+	return CRC;
+}
+
+
+// считаем КС принятого пакета. Указатель - на байт длины пакета.
+unsigned char check_RX_CRC_TWI (unsigned char *Position_in_Packet)
+{                    
+	unsigned char CRC = 0, a;		
+
+	a = *Position_in_Packet ;
+	
+	while(a--)
+	{
+		CRC += *Position_in_Packet++;
+	}
+
+	if (CRC == *Position_in_Packet)	
+			return TRUE; 										//Ok
+
+	else	return FALSE;                                      // Error
+}
+
+
+unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg )
+{
+                    // A failure has occurred, use TWIerrorMsg to determine the nature of the failure
+                    // and take appropriate actions.
+                    // Se header file for a list of possible failures messages.
+                    
+                    // Here is a simple sample, where if received a NACK on the slave address,
+                    // then a retransmission will be initiated.
+ 
+  if ( (TWIerrorMsg == TWI_MTX_ADR_NACK) | (TWIerrorMsg == TWI_MRX_ADR_NACK) )
+    TWI_Start_Transceiver();
+    
+  return TWIerrorMsg; 
+}
+
+
+// Исполняем команды TWI
+u8 RUN_TWI (u8 TWI_targetSlaveAddress, u8 TWI_sendCommand,	u8 Count_Bytes )
+{
+
+	    if ( ! TWI_Transceiver_Busy() )                              
+	    {
+    	// Check if the last operation was successful
+	      if ( TWI_statusReg.bits.lastTransOK )
+    	  {
+			LedGreen ();			// TWI   в норме
+			
+	        if (TWI_operation == SEND_DATA)
+	        { // Send data to slave
+    	      txBuffer[0] = (TWI_targetSlaveAddress<<TWI_ADR_BITS) | (FALSE<<TWI_READ_BIT);
+			  txBuffer[1] = TWI_sendCommand;             // The first byte is used for commands.
+
+        	  TWI_Start_Transceiver_With_Data( txBuffer, Count_Bytes ); 
+        	}  
+
+	        else if (TWI_operation == REQUEST_DATA)
+    	    { // Request data from slave
+        	  txBuffer[0] = (TWI_targetSlaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_READ_BIT);
+        	  TWI_Start_Transceiver_With_Data( txBuffer, Count_Bytes );
+	        }
+
+    	    else if (TWI_operation == READ_DATA_FROM_BUFFER)
+        	{ // Get the received data from the transceiver buffer
+	          TWI_Get_Data_From_Transceiver( rxBuffer, Count_Bytes ); // число принятых байт с учетом адреса 	
+	        }
+			return TRUE;
+    	  }
+	      else // Got an error during the last transmission
+    	  {
+        	// Use TWI status information to detemine cause of failure and take appropriate actions. 
+	        TWI_Act_On_Failure_In_Last_Transmission( TWI_Get_State_Info( ) );
+			LedRed ();			// авария TWI
+    	  }
+	    }
+		return FALSE;		// идет передача
+ }
+
+
+//    разблокировка подч.портов
+	void unlock_Pack (u8 TWI_targetSlaveAddress)
+	{
+		u8 temp = Start_point_of_Dann_TX_TWI;	
+	
+		// собираем все 
+		txBuffer[temp++] = PACKHDR;				// заголовок
+		txBuffer[temp++] = 4; 			           		// длина
+		txBuffer[temp++] = Internal_Packet;        	// адрес
+		txBuffer[temp++] = PT_PORT_UNLOCK; 	// тип
+		txBuffer[temp++] = TRUE;						// данные
+		txBuffer[temp++] = calc_CRC (&txBuffer[Start_point_of_Dann_TX_TWI+1]) + txBuffer[Start_point_of_Dann_TX_TWI];		//CRC
+
+		// передаем
+		TWI_operation = SEND_DATA; // Set next operation        
+		while (! RUN_TWI ( TWI_targetSlaveAddress, TWI_CMD_MASTER_WRITE, txBuffer[Start_point_of_Dann_TX_TWI+1] + 4 ) );
+		
+		#ifdef print
+		printf ("Unlock PORT %d \r\n",TWI_targetSlaveAddress);
+		#endif
+
+     }
+
+
+// пингуем подчиненное для проверки информации. Если приняты данные без ошибок - 
+// отправляем подтверждение приема.
+// 
+unsigned char pingPack (unsigned char TWI_targetSlaveAddress)
+{
+		// пусть готовит данные
+		TWI_operation = SEND_DATA; // Set next operation        
+		while (! RUN_TWI ( TWI_targetSlaveAddress, TWI_CMD_MASTER_READ, 2 ) );
+   
+		// принимаю данные
+		TWI_operation = REQUEST_DATA; // Set next operation        
+		while (! RUN_TWI (TWI_targetSlaveAddress, 0, 1 ) );
+
+        TWI_operation = READ_DATA_FROM_BUFFER; // Set next operation        
+		while (! RUN_TWI (TWI_targetSlaveAddress, 0, 2) );
+		
+		
+		// Есть данные на передачу. Принимаем и
+		// если данные  приняты без ошибок - высылаем подтверждение
+		
+		if ( rxBuffer [1] )		
+		{
+			// принимаю данные
+			TWI_operation = REQUEST_DATA; // Set next operation        
+			while (! RUN_TWI (TWI_targetSlaveAddress, 0, rxBuffer [1]+2 ) );
+
+	        TWI_operation = READ_DATA_FROM_BUFFER; // Set next operation        
+			while (! RUN_TWI (TWI_targetSlaveAddress, 0, rxBuffer [1] +2) );
+
+			// проверяем КС
+			if ( check_RX_CRC_TWI ( &rxBuffer[1] ) )
+			{//  подтверждение приема
+				TWI_operation = SEND_DATA; // Set next operation        
+				while (! RUN_TWI (TWI_targetSlaveAddress, TWI_CMD_MASTER_RECIVE_PACK_OK, 2 ) );
+				
+				return TRUE;
+			}
+		                      
+		}	
+		return FALSE;
+}	
+ 
+ 
+
+void	Relay_pack_from_UART_to_TWI (u8 TWI_targetSlaveAddress)
+{    
+		u8 a, b=0, CRC=0, temp = Start_point_of_Dann_TX_TWI;	
+		
+//		temp = Start_point_of_Dann_TX_TWI;	
+	
+		// собираем все 
+		txBuffer[temp++] = PACKHDR;				// заголовок
+		txBuffer[temp++] = rx0len+3;            		// длина (+3 - тк. вычлось при приеме)
+		txBuffer[temp++] = rx0addr;                 	// адрес
+		txBuffer[temp++] = rx0type;					// тип
+
+		for (a=0; a<=rx0len;  a++)
+		{
+			txBuffer[temp++] = rx0buf 	[b++];				
+		}                   
+
+		// передаем
+		TWI_operation = SEND_DATA; // Set next operation        
+		while (! RUN_TWI ( TWI_targetSlaveAddress, TWI_CMD_MASTER_WRITE, txBuffer[Start_point_of_Dann_TX_TWI+1] + 4 ) );
+
+}
+
+// Ретрансляция пакета подчиненному процессору
+// Глобальная передача всем подчиненным
+//u8	Relay_pack_from_UART_to_TWI_Internal (void)
+u8	Relay_pack_from_UART_to_TWI_Internal (u8 Target_Reciver_Addr)
+{    
+		u8 a, b=1, temp=Start_point_of_Dann_TX_TWI, CRC;
+//									 Target_Reciver_Addr;
+
+//		Target_Reciver_Addr = rx0buf [0]+offset;			// адрес приемника
+
+		// пакет ВСЕМ
+		if ( ( Target_Reciver_Addr == 255 ) || ( Target_Reciver_Addr == 254 )  )
+													  	Target_Reciver_Addr = TWI_GEN_CALL;
+
+		// адрес выходит за диапазон рабочих адресов?
+	 	if (  Target_Reciver_Addr > int_Devices+offset )  		return FALSE;		
+
+		// собираем все 
+
+		txBuffer[temp++] = PACKHDR;				// заголовок
+		CRC =  txBuffer[temp - 1];
+		
+		txBuffer[temp++] = rx0len+1;            		// длина 
+        CRC+=  txBuffer[temp - 1];
+        
+		if ( ! Target_Reciver_Addr )
+		{
+		 	txBuffer[temp++] = Global_Packet;			// подменяем адрес на глобальный (255).
+		}
+		else 	txBuffer[temp++] = Internal_Packet;			// подменяем адрес на внутренний. (0).
+        CRC+=  txBuffer[temp - 1];
+
+		
+		for (a=0; a<rx0len-1;  a++)
+		{
+	        CRC+= rx0buf [b];
+			txBuffer[temp++] = rx0buf 	[b++];				
+		}   
+		
+		txBuffer[temp++] = CRC;
+
+		// передаем по адресу ретранслируемого пакета. В самом пакете подменяем адрес на 0-
+		// признак внутреннего пакета  
+		TWI_operation = SEND_DATA; // Set next operation        
+		while (! RUN_TWI ( Target_Reciver_Addr, TWI_CMD_MASTER_WRITE,
+								 txBuffer[Start_point_of_Dann_TX_TWI+1] +4 ) );
+		return TRUE;					 
+}
+
+ // поиск порта  и передача пакета в порт
+u8 Searching_Port_for_Relay (void)
+{
+		u8 a;
+		
+		for (a=1; a<= int_Devices; a++)				// ищем порт по адресу
+		{
+				#ifdef print
+				printf ("Found PORT-%x, Device-%x\r\n", a, lAddrDevice [a]);
+				#endif
+
+		 	if (lAddrDevice [a]	== rx0addr)
+		 	{
+				LedRed();
+				Relay_pack_from_UART_to_TWI ( a );
+				return TRUE;
+		 	}
+		}
+
+		return FALSE;
+}

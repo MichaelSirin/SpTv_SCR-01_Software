@@ -1,0 +1,290 @@
+#include "Coding.h"
+
+#define ver_po 2					// Версия данного ПО
+#define pozkl 26					//позиция ключа для совместимости с ver 1.
+#define kolvo_sektorov 123     
+
+#define	p_progf			1
+#define	p_koderu		3
+#define	p_kluchi		5
+#define p_razresh		6
+#define p_ciklovogo	8
+#define	p_flagov		9			//пакет флагов
+
+// формируем пакет для передачи в линию
+void packCRC (void)
+{
+		u16 b, crc=0, temp = Start_point_of_Dann_TX_TWI;
+    
+    	txBuffer[temp++] = PACKHDR;		 	// заголовок
+		txBuffer[temp++] = lbuff+3;            		// длина (+3 - тк. вычлось при приеме)
+//		txBuffer[temp++] = 255;                		// адрес
+		txBuffer[temp++] =Internal_Packet; 		// адрес
+		txBuffer[temp++] = PT_SCRDATA ;	 	// тип
+
+		for (b=0; b<=txBuffer[Start_point_of_Dann_TX_TWI+1]; b++)	crc +=txBuffer[Start_point_of_Dann_TX_TWI+b] ;				
+		txBuffer[Start_point_of_Dann_TX_TWI+lbuff+4] = crc;					// CRC
+		
+		// передача в канал
+		TWI_operation = SEND_DATA; 
+		while (! RUN_TWI ( TWI_GEN_CALL, TWI_CMD_MASTER_WRITE,
+								 txBuffer[Start_point_of_Dann_TX_TWI+1] +4 ) );
+
+}
+
+
+
+
+//генерация пакета koderu
+void g_p_koderu(void)
+{
+	u16 i,crc=0;
+	komu=0x25;	//paket koderu
+
+	for (i=0;i<lbuff;i++)										// заполняем шумом буфер
+	{
+		gshum5();
+		buff_kazakovu[i]= gshch5 & 0xff;
+		if (buff_kazakovu[i]==0x47) buff_kazakovu[i]=0x78;		//na vsjakij sluchaj
+	}
+
+	buff_kazakovu[0]=0x47;								// накладываем полезную информацию сверху
+	buff_kazakovu[1]=0x1f;	//pid h
+	buff_kazakovu[2]=0xfe;	//pid l
+
+
+//buff_kazakovu[6]=0;	
+    gshch3=buff_kazakovu[6];
+
+	buff_kazakovu[17]=conf3 ^ buff_kazakovu[6];	//config
+	buff_kazakovu[11]=komu^buff_kazakovu[6];	//komu
+
+	for (i = 0; i<124; i ++)
+	{
+		gshum3();
+		buff_kazakovu[i+32] = f_buff_prog[i+1] ^ gshch3;
+		crc+= f_buff_prog[i+1];
+	}                                       
+
+	for (i = 0; i<8; i ++)
+	{
+		gshum3();
+		buff_kazakovu[i+32+124] = kluchi_koderu[i]^gshch3;
+		crc+=kluchi_koderu[i];   
+	}
+
+	crc = -1 -crc;
+	gshum3();
+
+	buff_kazakovu[32+124+8] = crc^gshch3;
+
+	packCRC();
+}
+
+
+void g_tx_kazakovu(void)
+{
+	u8 i;
+
+	for (i=0;i<lbuff;i++)
+	{
+		gshum5();
+		buff_kazakovu[i]= (gshch5) & 0xff;
+		if (buff_kazakovu[i]==0x47) buff_kazakovu[i]=0x78;		//na vsjakij sluchaj
+	}
+
+	buff_kazakovu[0]=0x47;
+	buff_kazakovu[1]=0x1f;	//pid h
+	buff_kazakovu[2]=0xfe;	//pid l
+                                          
+	gshch3=buff_kazakovu[6];
+	buff_kazakovu[17]=conf3 ^ buff_kazakovu[6];	//config
+	buff_kazakovu[11]=komu^buff_kazakovu[6];	//komu
+
+	for (i = 0; i<188; i ++)
+	{
+		gshum3();
+		buff_kazakovu[i+32] =buff_wyh_paket[i]^gshch3;
+	}
+
+	// Передаю очередной пакет
+	packCRC();
+	
+}
+
+
+
+//генерация маскировочного пакета с помощью gshum4
+void g_jadra_paketa(u8 tip)	
+{
+	int i;
+
+	for (i=0;i<lbuff;i++)
+	{
+		gshum4();
+
+		buff_wyh_paket[i]=gshch4 & 0xff;
+		if (buff_wyh_paket[i]==0x47) buff_wyh_paket[i]=0x78;		//na vsjakij sluchaj
+	}
+
+
+
+	buff_wyh_paket[0]=0x47;
+	buff_wyh_paket[1]=0x1f;	//pid h
+	buff_wyh_paket[2]=0xfe;	//pid l
+	buff_wyh_paket[3]=schetchic_paketov_zakrytija & 0x0f;
+	schetchic_paketov_zakrytija++;
+
+	#ifdef DEBUG_schetchic_paketov_zakrytija
+	buff_wyh_paket[8]=schetchic_paketov_zakrytija & 0xff;//
+	#endif DEBUG_schetchic_paketov_zakrytija
+
+	buff_wyh_paket[29]=tip ;//					tip
+
+	i=ver_kl & 0x80;
+	buff_wyh_paket[23]=((buff_wyh_paket[23] & 0x7f) | i);//версия ключей
+
+	gshch2=buff_wyh_paket[26];
+	g_klucha2();
+	buff_wyh_paket[17]=ver_po^gshch2 ;
+	
+	i=buff_wyh_paket[7];
+	i=(i & 0x0f)+171;
+	gshch1=buff_wyh_paket[i];
+	buff_wyh_paket[10]=confkluch1 ^ gshch1;
+			
+}
+
+
+void zakrutbuf(u8 tip)
+{
+	u16 i,a=0;
+
+	for (i = 0; i<142; i ++)	a=a+buff_wyh_paket[27+i];	//a - crc
+
+	a=-1-a;
+	buff_wyh_paket[27+142]=a;
+	buff_wyh_paket[27+143]=a/256;	//crc
+
+	for (i = 0; i<144; i ++)
+	{
+
+		g_klucha1();
+		buff_wyh_paket[27+i]=buff_wyh_paket[27+i] ^ gshch1 ^ 0xff;
+	}
+
+	if (tip==9)	buff_wyh_paket[11]=buff_wyh_paket[26]^0x09;			
+	else	buff_wyh_paket[11]=buff_wyh_paket[26]^0x56;			
+   
+}
+
+//пакет передачи флагов закрытия программ ///////////////////
+void g_p_flagov(void)
+{
+	komu=0x27;					//paket v liniju
+	g_jadra_paketa(p_flagov);			//генерация маскировочного пакета и ключей с помощью gshum4
+	zakrutbuf(p_flagov);
+	g_tx_kazakovu();
+}
+
+
+
+//генерация пакета абонентам (user.bin)
+void g_p_razresh(void)	
+{
+	u16 i; 
+	u32 position = 0;
+
+	komu=0x26;	//paket v liniju
+
+	g_jadra_paketa(p_razresh);//генерация маскировочного пакета и ключей с помощью gshum4
+
+	position = ((u32)schetchic_abonentov * (u32)dann_1_abon) + 4;
+	fseek (fu_user,position,SEEK_SET);	// смещаем относительно текущей позиции
+
+	for (i = 0; i<dann_1_abon; i ++)
+	{
+		if (feof(fu_user)) 
+		{
+			#ifdef print
+			printf("Error read base from card\n");
+			#endif
+			break;
+		}
+
+		buff_wyh_paket[i+32] =fgetc(fu_user);
+//		#ifdef print
+//		printf("%x ",buff_wyh_paket[i+32]);
+//		#endif
+	
+	}
+//	#ifdef print
+//	printf("\n -------------------------------------------------------------- \n ");
+//	#endif
+
+	zakrutbuf(p_razresh);
+	g_tx_kazakovu();
+}
+
+//генерация пакета в линию
+void g_p_kluchi(void)	
+{
+	u16 i;                            
+	komu=0x26;						//тип пакета - в линию
+
+	g_jadra_paketa(p_kluchi);				//генерация маскировочного пакета и ключей с помощью gshum4
+
+	for (i = 0; i<16; i ++)
+	{
+		buff_wyh_paket[32+3*i]=kluchi_dekoderu[i];
+	}
+	zakrutbuf(p_kluchi);
+	g_tx_kazakovu();
+}
+
+//пакет об окончании цикла//////////////////////////////
+void g_p_ciklovogo(void)
+{
+		komu=0x26;	//paket v liniju
+
+		g_jadra_paketa(p_ciklovogo);//генерация маскировочного пакета и ключей с помощью gshum4
+		zakrutbuf(p_ciklovogo);
+		g_tx_kazakovu();
+
+}
+
+// генерация пакета прошивки  FLASH для приемников
+void g_p_progf(void)	
+{
+			u16 i;                            
+
+			komu=0x26;	//paket v liniju
+
+			g_jadra_paketa(p_progf);//генерация маскировочного пакета и ключей с помощью gshum4
+
+			buff_wyh_paket[21]=(N_sektora^buff_wyh_paket[pozkl])^0xff ;//for old
+			buff_wyh_paket[19]=(ver_zeleza^buff_wyh_paket[pozkl])^0xff ;//for old
+
+			buff_wyh_paket[28]=N_sektora;
+			buff_wyh_paket[27]=ver_zeleza;
+
+//			fseek (fprogflas,N_sektora*128,SEEK_SET);	// смещаем относительно текущей позиции
+			fseek (fprogflas,0,SEEK_SET);	// смещаем относительно текущей позиции
+			for (i = 0; i<dann_1_abon; i ++)
+			{
+				if (feof(fprogflas)) 
+				{
+//					printf ("file MASK.CHM- ERROR!");
+					break;
+				}
+		
+			buff_wyh_paket[i+32] =fgetc(fprogflas);
+			}
+
+			zakrutbuf(p_progf);
+	
+			if (N_sektora<kolvo_sektorov) 	N_sektora++;
+			else	N_sektora=0;
+
+			g_tx_kazakovu();
+}

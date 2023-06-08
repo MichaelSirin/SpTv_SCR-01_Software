@@ -1,0 +1,313 @@
+
+	.org $3f00	;SMALLBOOTSTART
+	;b
+	sbi ddrb,IREQ
+	cbi portb,IREQ
+
+	ldi r16,low(ramend)
+	out spl,r16
+	ldi r16,high(ramend)
+	out sph,r16
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	clr zh
+	clr zl
+	rcall tstks_flash
+	brne errosnovnoj
+end_provflash:
+	jmp start
+
+errosnovnoj:
+	ldi zh,$40	;$20*2
+	clr zl
+	rcall tstks_flash	;copija horoshaja?
+	brne end_provflash	;startuem hot` osnovnaja i plohaja
+	rjmp copyflash
+
+
+.org $3f20
+
+;copyflash:
+	clr xh
+	clr xl
+	ldi r20,124	;sektora
+copyflashcikl:
+	ldi zh,$20
+	clr zl
+	add zl,xl
+	add zh,xh
+
+	ldi yh,high(bufprog)
+	ldi yl,low(bufprog)
+	ldi r19,128
+	lsl zl
+	rol zh
+
+copysek:
+	lpm r0,z+
+	st y+,r0
+	dec r19
+	brne copysek
+
+	ldi yh,high(bufprog)
+	ldi yl,low(bufprog)
+	ldi r19,128
+	mov zh,xh
+	mov zl,xl
+	lsl zl
+	rol zh
+
+tstsek:
+	lpm r0,z+
+	ld r16,y+
+	cp r16,r0
+	brne izmenilos
+
+	dec r19
+	brne tstsek
+
+	clr zh
+	ldi zl,$40
+	add xl,zl
+	adc xh,zh
+
+ldi r16,'#'
+rcall wsp
+
+	dec r20
+	brne copyflashcikl
+
+	jmp 0
+
+izmenilos:
+
+	ldi yh,high(bufprog)
+	ldi yl,low(bufprog)
+	mov zl,xl
+	mov zh,xh
+	call write_page
+
+;ldi r16,'('
+;rcall wsp
+;mov r16,xh
+;rcall wbp
+;mov r16,xl
+;rcall wbp
+
+	rjmp copyflashcikl
+
+;-------------------------------------------------
+;Программа переносит содержимое ОЗУ с адреса RAM в FLASH с адреса Z
+;Используем размер BOOT области-128слов ( 256 байт-4 страницы).
+;( 62-страницы ), накапливаемый код ($7C0-$F7F) ( 62-страницы )
+;Размер буфера - 64слова ( 1страница, 128 байта )
+
+	.org $3f70
+
+;write_page:
+;	 Y указываеt адрес RAM где лежит загружаемый код
+;	 Z указываеt адрес FLASH начиная с которого будем писать код
+
+	push r0
+	push r1
+	push r17
+	push r19
+	push r20
+	push r21
+	push r24
+	push r25
+	push xl
+	push xh
+
+
+
+	lsl ZL						;addr*2
+	rol ZH
+	mov r24,zl
+	mov r25,zh
+	mov r20,yl	;y-adres ozu
+	mov r21,yh
+
+
+write_page_cikl:
+	ldi r19,(1<<PGERS)|(1<<SPMEN)	;очищаем страницу памяти программ
+					; из временного буфера
+	call Do_SPM
+
+	 ldi r19,(1<<RWWSRE)|(1<<SPMEN) ;разрешаем адресацию области RWW
+	call Do_SPM
+
+	ldi xl,LOW(PAGESIZE*2)	;заполняем буфер страницы содержимым ОЗУ
+	ldi xh,HIGH(PAGESIZE*2)
+
+WrLoop:
+	ld r0,Y+	;y-adres ozu
+	ld r1,Y+
+	ldi r19,(1<<SPMEN)
+	call Do_SPM
+
+	adiw ZH:ZL,2	;z-adres flash
+
+	sbiw xl,2
+	brne WrLoop
+
+	mov zl,r24	;vosstanavlivaem Z
+	mov zh,r25
+
+	ldi r19,(1<<PGWRT)|(1<<SPMEN)
+	call Do_SPM				;записать страницу
+
+	ldi r19,(1<<RWWSRE)|(1<<SPMEN) ;разрешить адресацию области RWW
+	call Do_SPM
+
+	ldi xl,low(PAGESIZE*2)		;проверяем записанные данные
+	ldi xh,high(PAGESIZE*2)
+
+;	subi YL,low(PAGESIZE*2)	
+;	sbci YH,high(PAGESIZE*2)
+	mov yh,r21	;vosstanavlivaem Y
+	mov yl,r20
+
+Rd_loop:
+	lpm r0,Z+
+	ld r1,Y+
+
+	cpse r0,r1	;sravnit` i propustit` if =;
+	rjmp error
+
+	sbiw xl,1
+	brne Rd_loop
+
+return: 			;возврат в основную программу
+	in r16,SPMCR
+	sbrs r16,RWWSB
+	rjmp wyhboot
+;RWWSB_unlock:				;poka возврат zapreschen
+	ldi r19,(1<<RWWSRE)|(1<<SPMEN);разрешить адресацию области RWW
+	call Do_spm
+	rjmp return
+
+wyhboot:
+	pop xh
+	pop xl
+	pop r25
+	pop r24
+	pop r21
+	pop r20
+	pop r19
+	pop r17
+	pop r1
+	pop r0
+	ret
+
+error:			;действие в случае ошибки
+
+;ldi r16,'E'
+;rcall wywuartp
+	mov zh,r25
+	mov zl,r24
+	mov yh,r21
+	mov yl,r20
+	rjmp write_page_cikl
+
+
+Do_SPM:
+
+	Wait_SPM:
+		in r16,SPMCR		;можно ли выполнить команду SPM?
+		sbrc r16,SPMEN
+		rjmp Wait_SPM
+
+
+		in r17,SREG			;сохраняем регистр признаков
+		cli
+	Wait_EEPROM:
+		sbic EECR,EEWE		;ждем окончания работы с ЕЕПРОМ
+		rjmp Wait_EEPROM
+
+		out SPMCR,r19	;даем команду
+		spm
+		NOP
+		NOP
+		NOP
+		NOP
+
+		out SREG,r17
+		ret
+
+.org $3fc8
+
+
+;tstks_flash:
+	push r0
+	push r1
+	push r16
+	push r17
+	push r18
+	push zl
+	push zh
+	ldi r18,$3e	;last adrH+1
+	add r18,zh
+	clr r16
+	clr r17
+
+provksf:
+	lpm r0,z+
+	lpm r1,z+
+	add r16,r0
+	adc r17,r1
+	cp zh,r18
+	brne provksf
+	inc r16
+	brne provksf1
+	inc r17
+provksf1:
+	pop zh
+	pop zl
+	pop r18
+	pop r17
+	pop r16
+	pop r1
+	pop r0
+	ret
+
+
+.org $3fe7
+
+wsp:
+wywuartp:
+	sbis ucsra,udre   ;UART
+	rjmp wywuartp
+	out udr,r16	;
+	ret
+wbp:			;из r16
+	push r16
+	swap r16
+	rcall wbp1
+	pop r16
+wbp1:
+	push r16
+	push r18
+	andi r16,$0f
+	cpi r16,$0a
+	brcs wbp2
+	ldi r18,$7
+	add r16,r18
+wbp2:
+	ldi r18,$30
+	add r16,r18
+	rcall wywuartp
+	pop r18
+	pop r16
+	ret
+
+
+	.include "serno.a"
+
+	.org $3ffc
+;mac:
+	.dw (serno-1)*2
+;nomver_zeleza:
+	.db ver_zeleza,0
+	.dw (sernoH)

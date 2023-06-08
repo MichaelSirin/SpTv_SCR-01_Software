@@ -1,0 +1,35 @@
+ Volume in drive C is DISKC
+ Volume Serial Number is 0F1F-17F9
+
+ Directory of c:\Users\Michael\C_CVision\CodingDevice\Mega8
+
+28.03.2006  10:54    <DIR>          .
+28.03.2006  10:54    <DIR>          ..
+28.03.2006  10:54    <DIR>          BootloaderM8
+01.03.2006  06:52             2ÿ268 prog_mega8_1_cof.aps
+03.03.2006  03:53             3ÿ715 prog_mega8_1.c~
+07.03.2006  06:15             3ÿ719 prog_mega8_1.c
+12.03.2006  23:30             1ÿ524 codingm8.h~
+13.03.2006  00:41             1ÿ526 CodingM8.h
+11.03.2006  02:14                39 CodingM8.c
+13.03.2006  02:41             5ÿ145 twi_slave.c~
+13.03.2006  03:12             5ÿ034 twi_slave.c
+12.03.2006  23:23            15ÿ578 r.txt
+18.05.2006  06:23             3ÿ837 prog_mega8_1.prj
+01.03.2006  06:04             4ÿ669 prog_mega8_1.cwp
+18.05.2006  06:22                40 prog_mega8_1.inc
+18.05.2006  06:22               285 prog_mega8_1.map
+18.05.2006  06:22            22ÿ583 prog_mega8_1.asm
+18.05.2006  06:22               259 prog_mega8_1.vec
+18.05.2006  06:22             3ÿ837 prog_mega8_1.pr~
+03.03.2006  03:53               405 prog_mega8_1.err
+18.05.2006  06:22            48ÿ298 prog_mega8_1.lst
+18.05.2006  06:22             1ÿ778 prog_mega8_1.obj
+18.05.2006  06:22             2ÿ210 prog_mega8_1.rom
+18.05.2006  06:22               979 prog_mega8_1.hex
+18.05.2006  06:22             1ÿ814 prog_mega8_1.cof
+18.05.2006  06:23                 0 prog_mega8_1.txt
+18.05.2006  06:22             3ÿ719 prog_mega8_1__.c
+18.05.2006  06:52                 0 a
+              25 File(s)        133ÿ261 bytes
+               3 Dir(s)   1ÿ084ÿ751ÿ872 bytes free

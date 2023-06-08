@@ -1,0 +1,74 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: c:\users\michael\c_cvision\codingdevice\mega128\Coding.c
+Global variables memory map:
+
+Variable                          Address   Size
+txBuffer                                                              500h    256
+rxBuffer                                                              600h    256
+lAddrDevice                                                           700h     64
+*str                                                                 R4,R5      2
+*str1                                                                R6,R7      2
+*pntr1                                                               R8,R9      2
+cp[0].name                                                            740h     16
+cp[0].addr                                                            750h      1
+cp[1].name                                                            751h     16
+cp[1].addr                                                            761h      1
+cp[2].name                                                            762h     16
+cp[2].addr                                                            772h      1
+cp[3].name                                                            773h     16
+cp[3].addr                                                            783h      1
+tx0crc                                                                 R10      1
+rx0state                                                               R11      1
+rx0crc                                                                 R12      1
+rx0len                                                                 R13      1
+rx0addr                                                               784h      1
+rx0type                                                                R14      1
+rx0buf                                                                785h    255
+rx0ptr                                                                884h      1
+tx1crc                                                                885h      1
+rx1state                                                              886h      1
+rx1crc                                                                887h      1
+rx1len                                                                888h      1
+rx1buf                                                                889h    256
+rx1ptr                                                                989h      1
+flagTWI                                                               98Ah      1
+int_Devices                                                           98Bh      1
+OCR_REG                                                               98Ch      4
+_FF_buff                                                              990h    512
+PT_SecStart                                                           B90h      2
+BS_jmpBoot                                                            B92h      4
+BPB_BytsPerSec                                                        B96h      2
+BPB_SecPerClus                                                        B98h      1
+BPB_RsvdSecCnt                                                        B99h      2
+BPB_NumFATs                                                           B9Bh      1
+BPB_RootEntCnt                                                        B9Ch      2
+BPB_FATSz16                                                           B9Eh      2
+BPB_FATType                                                           BA0h      1
+BPB_TotSec                                                            BA1h      4
+BS_VolSerial                                                          BA5h      4
+BS_VolLab                                                             BA9h     12
+_FF_PART_ADDR                                                         BB5h      4
+_FF_ROOT_ADDR                                                         BB9h      4
+_FF_DIR_ADDR                                                          BBDh      4
+_FF_FAT1_ADDR                                                         BC1h      4
+_FF_FAT2_ADDR                                                         BC5h      4
+_FF_RootDirSectors                                                    BC9h      4
+FirstDataSector                                                       BCDh      2
+FirstSectorofCluster                                                  BCFh      4
+_FF_error                                                             BD3h      1
+_FF_buff_addr                                                         BD4h      4
+DataClusTot                                                           BD8h      4
+rtc_hour                                                              BDCh      1
+rtc_min                                                               BDDh      1
+rtc_sec                                                               BDEh      1
+rtc_date                                                              BDFh      1
+rtc_month                                                             BE0h      1
+rtc_year                                                              BE1h      2
+clus_0_addr                                                           BE3h      4
+_FF_n_temp                                                            BE7h      4
+c_counter                                                             BEBh      2
+_FF_FULL_PATH                                                         BEDh    100
+FILENAME                                                              C51h     12

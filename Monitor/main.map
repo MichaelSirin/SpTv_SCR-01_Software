@@ -1,0 +1,28 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: Z:\Michael\C_CodeVision\CodingDevice\Monitor\main.c
+Global variables memory map:
+
+Variable                          Address   Size
+prgmode                                                               R2.0    1/8
+descramble                                                            R2.1    1/8
+rxPack                                                                  R4      1
+TWI_statusReg.all                                                     160h      1
+TWI_statusReg.bits.lastTransOK:0                                      160h    1/8
+TWI_statusReg.bits.RxDataInBuf:1                                      160h    1/8
+TWI_statusReg.bits.genAddressCall:2                                   160h    1/8
+TWI_statusReg.bits.unusedBits:3..7                                    160h    5/8
+TWI_slaveAddress                                                        R5      1
+TWI_TX_Packet_Present                                                 R2.2    1/8
+toReboot                                                              R2.3    1/8
+toProgramming                                                         R2.4    1/8
+txBufferTWI                                                           161h     62
+rxBufferTWI                                                           19Fh    250
+TWI_buf_G2                                                            299h    250
+TWI_msgSize_G2                                                        393h      1
+TWI_state_G2                                                          394h      1
+TWI_bufPtr_SF                                                           R6      1
+next_rand                                                             395h      4
+rand_cnt                                                                R7      1

@@ -1,0 +1,577 @@
+/*
+	Progressive Resources LLC
+                                    
+			FlashFile
+	
+	Version : 	1.32
+	Date: 		12/31/2003
+	Author: 	Erick M. Higa
+                                           
+	Software License
+	The use of Progressive Resources LLC FlashFile Source Package indicates 
+	your understanding and acceptance of the following terms and conditions. 
+	This license shall supersede any verbal or prior verbal or written, statement 
+	or agreement to the contrary. If you do not understand or accept these terms, 
+	or your local regulations prohibit "after sale" license agreements or limited 
+	disclaimers, you must cease and desist using this product immediately.
+	This product is © Copyright 2003 by Progressive Resources LLC, all rights 
+	reserved. International copyright laws, international treaties and all other 
+	applicable national or international laws protect this product. This software 
+	product and documentation may not, in whole or in part, be copied, photocopied, 
+	translated, or reduced to any electronic medium or machine readable form, without 
+	prior consent in writing, from Progressive Resources LLC and according to all 
+	applicable laws. The sole owner of this product is Progressive Resources LLC.
+
+	Operating License
+	You have the non-exclusive right to use any enclosed product but have no right 
+	to distribute it as a source code product without the express written permission 
+	of Progressive Resources LLC. Use over a "local area network" (within the same 
+	locale) is permitted provided that only a single person, on a single computer 
+	uses the product at a time. Use over a "wide area network" (outside the same 
+	locale) is strictly prohibited under any and all circumstances.
+                                           
+	Liability Disclaimer
+	This product and/or license is provided as is, without any representation or 
+	warranty of any kind, either express or implied, including without limitation 
+	any representations or endorsements regarding the use of, the results of, or 
+	performance of the product, Its appropriateness, accuracy, reliability, or 
+	correctness. The user and/or licensee assume the entire risk as to the use of 
+	this product. Progressive Resources LLC does not assume liability for the use 
+	of this product beyond the original purchase price of the software. In no event 
+	will Progressive Resources LLC be liable for additional direct or indirect 
+	damages including any lost profits, lost savings, or other incidental or 
+	consequential damages arising from any defects, or the use or inability to 
+	use these products, even if Progressive Resources LLC have been advised of 
+	the possibility of such damages.
+*/                                 
+
+/*
+#include _AVR_LIB_
+#include <stdio.h>
+
+#ifndef _file_sys_h_
+	#include "..\flash\file_sys.h"
+#endif
+*/
+
+unsigned long OCR_REG;
+unsigned char _FF_buff[512];
+unsigned int PT_SecStart;
+unsigned long BS_jmpBoot;
+unsigned int BPB_BytsPerSec;
+unsigned char BPB_SecPerClus;
+unsigned int BPB_RsvdSecCnt;
+unsigned char BPB_NumFATs;
+unsigned int BPB_RootEntCnt;
+unsigned int BPB_FATSz16;
+unsigned char BPB_FATType;
+unsigned long BPB_TotSec;
+unsigned long BS_VolSerial;
+unsigned char BS_VolLab[12];
+unsigned long _FF_PART_ADDR, _FF_ROOT_ADDR, _FF_DIR_ADDR;
+unsigned long _FF_FAT1_ADDR, _FF_FAT2_ADDR;
+unsigned long _FF_RootDirSectors;
+unsigned int FirstDataSector;
+unsigned long FirstSectorofCluster;
+unsigned char _FF_error;
+unsigned long _FF_buff_addr;
+extern unsigned long clus_0_addr, _FF_n_temp;
+extern unsigned int c_counter;
+extern unsigned char _FF_FULL_PATH[_FF_PATH_LENGTH];
+
+unsigned long DataClusTot;
+
+flash struct CMD
+{
+	unsigned int index;
+	unsigned int tx_data;
+	unsigned int arg;
+	unsigned int resp;
+};
+
+flash struct CMD sd_cmd[CMD_TOT] =
+{
+	{CMD0,	0x40,	NO_ARG,		RESP_1},		// GO_IDLE_STATE
+	{CMD1,	0x41,	NO_ARG,		RESP_1},		// SEND_OP_COND (ACMD41 = 0x69)
+	{CMD9,	0x49,	NO_ARG,		RESP_1},		// SEND_CSD
+	{CMD10,	0x4A,	NO_ARG,		RESP_1},		// SEND_CID
+	{CMD12,	0x4C,	NO_ARG,		RESP_1},		// STOP_TRANSMISSION
+	{CMD13,	0x4D,	NO_ARG,		RESP_2},		// SEND_STATUS
+	{CMD16,	0x50,	BLOCK_LEN,	RESP_1},		// SET_BLOCKLEN
+	{CMD17, 0x51,	DATA_ADDR,	RESP_1},		// READ_SINGLE_BLOCK
+	{CMD18, 0x52,	DATA_ADDR,	RESP_1},		// READ_MULTIPLE_BLOCK
+	{CMD24, 0x58,	DATA_ADDR,	RESP_1},		// WRITE_BLOCK
+	{CMD25, 0x59,	DATA_ADDR,	RESP_1},		// WRITE_MULTIPLE_BLOCK
+	{CMD27,	0x5B,	NO_ARG,		RESP_1},		// PROGRAM_CSD
+	{CMD28, 0x5C,	DATA_ADDR,	RESP_1b},		// SET_WRITE_PROT
+	{CMD29, 0x5D,	DATA_ADDR,	RESP_1b},		// CLR_WRITE_PROT
+	{CMD30, 0x5E,	DATA_ADDR,	RESP_1},		// SEND_WRITE_PROT
+	{CMD32,	0x60,	DATA_ADDR,	RESP_1},		// TAG_SECTOR_START
+	{CMD33,	0x61,	DATA_ADDR,	RESP_1},		// TAG_SECTOR_END
+	{CMD34,	0x62,	DATA_ADDR,	RESP_1},		// UNTAG_SECTOR
+	{CMD35,	0x63,	DATA_ADDR,	RESP_1},		// TAG_ERASE_GROUP_START
+	{CMD36,	0x64,	DATA_ADDR,	RESP_1},		// TAG_ERASE_GROUP_END
+	{CMD37,	0x65,	DATA_ADDR,	RESP_1},		// TAG_ERASE_GROUP
+	{CMD38,	0x66,	STUFF_BITS,	RESP_1b},		// ERASE
+	{CMD42,	0x6A,	STUFF_BITS,	RESP_1b},		// LOCK_UNLOCK
+	{CMD58,	0x7A,	NO_ARG,		RESP_3},		// READ_OCR
+	{CMD59,	0x7B,	STUFF_BITS,	RESP_1},		// CRC_ON_OFF
+	{ACMD41, 0x69,	NO_ARG,		RESP_1}
+};
+
+unsigned char _FF_spi(unsigned char mydata)
+{
+    SPDR = mydata;          //byte 1
+    while ((SPSR&0x80) == 0); 
+    return SPDR;
+}
+	
+unsigned int send_cmd(unsigned char command, unsigned long argument)
+{
+	unsigned char spi_data_out;
+	unsigned char response_1;
+	unsigned long response_2;
+	unsigned int c, i;
+	
+	SD_CS_ON();			// select chip
+	
+	spi_data_out = sd_cmd[command].tx_data;
+	_FF_spi(spi_data_out);
+	
+	c = sd_cmd[command].arg;
+	if (c == NO_ARG)
+		for (i=0; i<4; i++)
+			_FF_spi(0);
+	else
+	{
+		spi_data_out = (argument & 0xFF000000) >> 24;
+		_FF_spi(spi_data_out);
+		spi_data_out = (argument & 0x00FF0000) >> 16;
+		_FF_spi(spi_data_out);
+		spi_data_out = (argument & 0x0000FF00) >> 8;
+		_FF_spi(spi_data_out);
+		spi_data_out = (argument & 0x000000FF);
+		_FF_spi(spi_data_out);
+	}
+	if (command == CMD0)
+		spi_data_out = 0x95;		// CRC byte, don't care except for first signal=0x95
+	else
+		spi_data_out = 0xFF;
+	_FF_spi(spi_data_out);
+	_FF_spi(0xff);	
+	c = sd_cmd[command].resp;
+	switch(c)
+	{
+		case RESP_1:
+			return (_FF_spi(0xFF));
+			break;
+		case RESP_1b:
+			response_1 = _FF_spi(0xFF);
+			response_2 = 0;
+			while (response_2 == 0)
+				response_2 = _FF_spi(0xFF);
+			return (response_1);
+			break;
+		case RESP_2:
+			response_2 = _FF_spi(0xFF);
+			response_2 = (response_2 << 8) | _FF_spi(0xFF);
+			return (response_2);
+			break;
+		case RESP_3:
+			response_1 = _FF_spi(0xFF);
+			OCR_REG = 0;
+			response_2 = _FF_spi(0xFF);
+			OCR_REG = response_2 << 24;
+			response_2 = _FF_spi(0xFF);
+			OCR_REG |= (response_2 << 16);
+			response_2 = _FF_spi(0xFF);
+			OCR_REG |= (response_2 << 8);
+			response_2 = _FF_spi(0xFF);
+			OCR_REG |= (response_2);
+			return (response_1);
+			break;
+	}
+	return (0);
+}
+
+void clear_sd_buff(void)
+{
+	SD_CS_OFF();
+	_FF_spi(0xFF);
+	_FF_spi(0xFF);
+}	
+
+unsigned char initialize_media(void)
+{
+	unsigned char data_temp;
+	unsigned long n;
+	
+	// SPI BUS SETUP
+	// SPI initialization
+	// SPI Type: Master
+	// SPI Clock Rate: 921.600 kHz
+	// SPI Clock Phase: Cycle Half
+	// SPI Clock Polarity: Low
+	// SPI Data Order: MSB First
+	DDRB |= 0x07;		// Set SS, SCK, and MOSI to Output (If not output, processor will be a slave)
+	DDRB &= 0xF7;		// Set MISO to Input
+	CS_DDR_SET();		// Set CS to Output
+	SPCR=0x50;
+	SPSR=0x00;
+		
+	BPB_BytsPerSec = 512;	// Initialize sector size to 512 (all SD cards have a 512 sector size)
+    _FF_n_temp = 0;
+	if (reset_sd()==0)
+		return (0);
+	// delay_ms(50);
+	for (n=0; ((n<100)||(data_temp==0)) ; n++)
+	{
+		SD_CS_ON();
+		data_temp = _FF_spi(0xFF);
+		SD_CS_OFF();
+	}
+	// delay_ms(50);
+	for (n=0; n<100; n++)
+	{
+		if (init_sd())		// Initialization Succeeded
+			break;
+		if (n==99)
+			return (0);
+	}
+
+	if (_FF_read(0x0)==0)
+	{
+		#ifdef _DEBUG_ON_
+			printf("\n\rREAD_ERR"); 		
+		#endif
+		_FF_error = INIT_ERR;
+		return (0);
+	}
+	PT_SecStart = ((int) _FF_buff[0x1c7] << 8) | (int) _FF_buff[0x1c6];
+	
+	if ((((_FF_buff[0]==0xEB)&&(_FF_buff[2]==0x90))||(_FF_buff[0]==0xE9)) && ((_FF_buff[510]==0x55)&&(_FF_buff[511]==0xAA)))
+    	PT_SecStart = 0;
+ 
+	_FF_PART_ADDR = (long) PT_SecStart * (long) BPB_BytsPerSec;
+
+	if (PT_SecStart)
+	{
+		if (_FF_read(_FF_PART_ADDR)==0)
+		{
+		   	#ifdef _DEBUG_ON_
+				printf("\n\rREAD_ERR");
+			#endif
+			_FF_error = INIT_ERR;
+			return (0);
+		}
+	}
+
+ 	#ifdef _DEBUG_ON_
+		printf("\n\rBoot_Sec: [0x%X %X %X] [0x%X] [0x%X]", _FF_buff[0],_FF_buff[1],_FF_buff[2],_FF_buff[510],_FF_buff[511]); 		
+	#endif
+   	
+    BS_jmpBoot = (((long) _FF_buff[0] << 16) | ((int) _FF_buff[1] << 8) | (int) _FF_buff[2]);    		
+	BPB_BytsPerSec = ((int) _FF_buff[0xC] << 8) | (int) _FF_buff[0xB];
+    BPB_SecPerClus = _FF_buff[0xD];
+	BPB_RsvdSecCnt = ((int) _FF_buff[0xF] << 8) | (int) _FF_buff[0xE];	
+	BPB_NumFATs = _FF_buff[0x10];
+	BPB_RootEntCnt = ((int) _FF_buff[0x12] << 8) | (int) _FF_buff[0x11];	
+	BPB_FATSz16 = ((int) _FF_buff[0x17] << 8) | (int) _FF_buff[0x16];
+	BPB_TotSec = ((unsigned int) _FF_buff[0x14] << 8) | (unsigned int) _FF_buff[0x13];
+	if (BPB_TotSec==0)
+		BPB_TotSec = ((unsigned long) _FF_buff[0x23] << 24) | ((unsigned long) _FF_buff[0x22] << 16)
+					| ((unsigned long) _FF_buff[0x21] << 8) | ((unsigned long) _FF_buff[0x20]);
+	BS_VolSerial = ((unsigned long) _FF_buff[0x2A] << 24) | ((unsigned long) _FF_buff[0x29] << 16)
+				| ((unsigned long) _FF_buff[0x28] << 8) | ((unsigned long) _FF_buff[0x27]);
+	for (n=0; n<11; n++)
+		BS_VolLab[n] = _FF_buff[0x2B+n];
+	BS_VolLab[11] = 0;		// Terminate the string
+	_FF_FAT1_ADDR = _FF_PART_ADDR + ((long) BPB_RsvdSecCnt * (long) BPB_BytsPerSec); 
+	_FF_FAT2_ADDR = _FF_FAT1_ADDR + ((long) BPB_FATSz16 * (long) BPB_BytsPerSec);
+	_FF_ROOT_ADDR = ((long) BPB_NumFATs * (long) BPB_FATSz16) + (long) BPB_RsvdSecCnt;
+	_FF_ROOT_ADDR *= BPB_BytsPerSec;
+	_FF_ROOT_ADDR += _FF_PART_ADDR;
+	
+	_FF_RootDirSectors = ((BPB_RootEntCnt * 32) + BPB_BytsPerSec - 1) / BPB_BytsPerSec;
+	FirstDataSector = (BPB_NumFATs * BPB_FATSz16) + BPB_RsvdSecCnt + _FF_RootDirSectors; 
+	
+	DataClusTot = BPB_TotSec - FirstDataSector;
+	DataClusTot /= BPB_SecPerClus;
+	clus_0_addr = 0;		// Reset Empty Cluster table location
+	c_counter = 1;
+	
+	if (DataClusTot < 4085)				// FAT12
+		BPB_FATType = 0x32;
+	else if (DataClusTot < 65525)		// FAT16
+		BPB_FATType = 0x36;
+	else
+	{
+		BPB_FATType = 0;
+		_FF_error = FAT_ERR;
+		return (0);
+	}
+    
+	_FF_DIR_ADDR = _FF_ROOT_ADDR;		// Set current directory to root address
+
+	_FF_FULL_PATH[0] = 0x5C;	// a '\'
+	_FF_FULL_PATH[1] = 0;
+	
+	#ifdef _DEBUG_ON_
+		printf("\n\rPart Address:  %lX", _FF_PART_ADDR);
+		printf("\n\rBS_jmpBoot:  %lX", BS_jmpBoot);
+		printf("\n\rBPB_BytsPerSec:  %X", BPB_BytsPerSec);
+		printf("\n\rBPB_SecPerClus:  %X", BPB_SecPerClus);
+		printf("\n\rBPB_RsvdSecCnt:  %X", BPB_RsvdSecCnt);
+		printf("\n\rBPB_NumFATs:  %X", BPB_NumFATs);
+		printf("\n\rBPB_RootEntCnt:  %X", BPB_RootEntCnt);
+		printf("\n\rBPB_FATSz16:  %X", BPB_FATSz16);
+		printf("\n\rBPB_TotSec16:  %lX", BPB_TotSec);
+		if (BPB_FATType == 0x32)
+			printf("\n\rBPB_FATType:  FAT12");
+		else if (BPB_FATType == 0x36)
+			printf("\n\rBPB_FATType:  FAT16");
+		else
+			printf("\n\rBPB_FATType:  FAT ERROR!!");
+		printf("\n\rClusterCnt:  %lX", DataClusTot);
+		printf("\n\rROOT_ADDR:  %lX", _FF_ROOT_ADDR);
+		printf("\n\rFAT2_ADDR:  %lX", _FF_FAT2_ADDR);
+		printf("\n\rRootDirSectors:  %X", _FF_RootDirSectors);
+		printf("\n\rFirstDataSector:  %X", FirstDataSector);
+	#endif
+	
+	return (1);	
+}
+
+unsigned char spi_speedset(void)
+{
+	if (SPCR == 0x50)
+		SPCR = 0x51;
+	else if (SPCR == 0x51)
+		SPCR = 0x52;
+	else if (SPCR == 0x52)
+		SPCR = 0x53;
+	else
+	{
+		SPCR = 0x50;
+		return (0);
+	}
+	return (1);
+}
+
+unsigned char reset_sd(void)
+{
+	unsigned char resp, n, c;
+
+	#ifdef _DEBUG_ON_
+		printf("\n\rReset CMD:  ");	
+	#endif
+	
+	for (c=0; c<4; c++)		// try reset command 3 times if needed
+	{
+		SD_CS_OFF();
+		for (n=0; n<10; n++)	// initialize clk signal to sync card
+			_FF_spi(0xFF);
+		resp = send_cmd(CMD0,0);
+		for (n=0; n<200; n++)
+		{
+			if (resp == 0x1)
+			{
+				SD_CS_OFF();
+    			#ifdef _DEBUG_ON_
+					printf("OK!!!");
+				#endif
+				SPCR = 0x50;
+				return(1);
+			}
+	      	resp = _FF_spi(0xFF);
+		}
+		#ifdef _DEBUG_ON_
+			printf("ERROR!!!");
+		#endif
+ 		if (spi_speedset()==0)
+ 		{
+		    SD_CS_OFF();
+ 			return (0);
+ 		}
+	}
+	return (0);
+}
+
+unsigned char init_sd(void)
+{
+	unsigned char resp;
+	unsigned int c;
+	
+	clear_sd_buff();
+
+    #ifdef _DEBUG_ON_
+		printf("\r\nInitialization:  ");
+	#endif
+    for (c=0; c<1000; c++)
+    {
+    	resp = send_cmd(CMD1, 0);
+    	if (resp == 0)
+    		break;
+   		resp = _FF_spi(0xFF);
+   		if (resp == 0)
+   			break;
+   		resp = _FF_spi(0xFF);
+   		if (resp == 0)
+   			break;
+	}
+   	if (resp == 0)
+	{
+		#ifdef _DEBUG_ON_
+   			printf("OK!");
+	   	#endif
+		return (1);
+	}
+	else
+	{
+		#ifdef _DEBUG_ON_
+   			printf("ERROR-%x  ", resp);
+	   	#endif
+		return (0);
+ 	}        		
+}
+
+unsigned char _FF_read_disp(unsigned long sd_addr)
+{
+	unsigned char resp;
+	unsigned long n, remainder;
+	
+	if (sd_addr % 0x200)
+	{	// Not a valid read address, return 0
+		_FF_error = READ_ERR;
+		return (0);
+	}
+
+	clear_sd_buff();
+	resp = send_cmd(CMD17, sd_addr);		// Send read request
+	
+	while(resp!=0xFE)
+		resp = _FF_spi(0xFF);
+	for (n=0; n<512; n++)
+	{
+		remainder = n % 0x10;
+		if (remainder == 0)
+			printf("\n\r");
+		_FF_buff[n] = _FF_spi(0xFF);
+		if (_FF_buff[n]<0x10)
+			putchar(0x30);
+		printf("%X ", _FF_buff[n]);
+	}
+	_FF_spi(0xFF);
+	_FF_spi(0xFF);
+	_FF_spi(0xFF);
+	SD_CS_OFF();
+	return (1);
+}
+
+// Read data from a SD card @ address
+unsigned char _FF_read(unsigned long sd_addr)
+{
+	unsigned char resp;
+	unsigned long n;
+//printf("\r\nReadin ADDR [0x%lX]", sd_addr);
+	
+	if (sd_addr % BPB_BytsPerSec)
+	{	// Not a valid read address, return 0
+		_FF_error = READ_ERR;
+		return (0);
+	}
+		
+	for (;;)
+	{
+		clear_sd_buff();
+		resp = send_cmd(CMD17, sd_addr);	// read block command
+		for (n=0; n<1000; n++)
+		{
+			if (resp==0xFE)
+			{	// waiting for start byte
+				break;
+			}
+			resp = _FF_spi(0xFF);
+		}
+		if (resp==0xFE)
+		{	// if it is a valid start byte => start reading SD Card
+			for (n=0; n<BPB_BytsPerSec; n++)
+				_FF_buff[n] = _FF_spi(0xFF);
+			_FF_spi(0xFF);
+			_FF_spi(0xFF);
+			_FF_spi(0xFF);
+			SD_CS_OFF();
+			_FF_error = NO_ERR;
+			_FF_buff_addr = sd_addr;
+			SPCR = 0x50;
+			return (1);
+		}
+
+		SD_CS_OFF();
+
+		if (spi_speedset()==0)
+			break;
+	}	
+	_FF_error = READ_ERR;    
+	return(0);
+}
+
+
+#ifndef _READ_ONLY_
+unsigned char _FF_write(unsigned long sd_addr)
+{
+	unsigned char resp, calc, valid_flag;
+	unsigned int n;
+	
+	if ((sd_addr%BPB_BytsPerSec) || (sd_addr <= _FF_PART_ADDR))
+	{	// Not a valid write address, return 0
+		_FF_error = WRITE_ERR;
+		return (0);
+	}
+
+//printf("\r\nWriting to address:  %lX", sd_addr);
+	for (;;)
+	{
+		clear_sd_buff();
+		resp = send_cmd(CMD24, sd_addr);
+		valid_flag = 0;
+		for (n=0; n<1000; n++)
+		{
+			if (resp == 0x00)
+			{
+				valid_flag = 1;
+				break;
+			}
+			resp = _FF_spi(0xFF);
+		}
+	
+		if (valid_flag)
+		{
+			_FF_spi(0xFF);
+			_FF_spi(0xFE);					// Start Block Token
+			for (n=0; n<BPB_BytsPerSec; n++)		// Write Data in buffer to card
+				_FF_spi(_FF_buff[n]);
+			_FF_spi(0xFF);					// Send 2 blank CRC bytes
+			_FF_spi(0xFF);
+			resp = _FF_spi(0xFF);			// Response should be 0bXXX00101
+			calc = resp | 0xE0;
+			if (calc==0xE5)
+			{
+				while(_FF_spi(0xFF)==0)
+					;	// Clear Buffer before returning 'OK'
+				SD_CS_OFF();
+//				SPCR = 0x50;			// Reset SPI bus Speed
+				_FF_error = NO_ERR;
+				return(1);
+			}
+		}
+		SD_CS_OFF(); 
+
+		if (spi_speedset()==0)
+			break;
+		// delay_ms(100);		
+	}
+	_FF_error = WRITE_ERR;
+	return(0x0);
+}
+#endif

@@ -1,0 +1,15 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: z:\michael\c_codevision\codingdevice\mega128\bootloaderm128\main.c
+Global variables memory map:
+
+Variable                          Address   Size
+prgmode                                                               R2.0    1/8
+descramble                                                            R2.1    1/8
+pcrc                                                                    R4      1
+plen                                                                  500h      1
+nbyts                                                                 501h      1
+next_rand                                                             502h      4
+rand_cnt                                                                R5      1

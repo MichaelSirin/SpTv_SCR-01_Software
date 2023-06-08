@@ -1,0 +1,36 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: z:\michael\c_codevision\codingdevice\mega8\prog_mega8_1.c
+Global variables memory map:
+
+Variable                          Address   Size
+rxBufferTWI                                                           160h    250
+txBufferTWI                                                           25Ah    100
+rxBufferUART                                                          2BEh    100
+CountUART                                                               R4      1
+CountUART_1                                                             R5      1
+Relay_Pack_TWI_UART                                                     R6      1
+Relay_Pack_UART_TWI                                                     R7      1
+Count_For_Timer2                                                        R8      1
+Packet_Lost                                                             R9      1
+lAddr                                                                  R10      1
+TWI_statusReg.all                                                     322h      1
+TWI_statusReg.bits.lastTransOK:0                                      322h    1/8
+TWI_statusReg.bits.RxDataInBuf:1                                      322h    1/8
+TWI_statusReg.bits.genAddressCall:2                                   322h    1/8
+TWI_statusReg.bits.unusedBits:3..7                                    322h    5/8
+TWI_slaveAddress                                                       R11      1
+gate_UART_to_TWI_open                                                 R2.0    1/8
+rxPack                                                                R2.1    1/8
+TWI_TX_Packet_Present                                                 R2.2    1/8
+rxPackUART                                                            R2.3    1/8
+Device_Connected                                                      R2.4    1/8
+InternalPack                                                          R2.5    1/8
+to_Reboot                                                             R2.6    1/8
+Responce_Time_Out                                                     R2.7    1/8
+TWI_buf_G3                                                            323h    250
+TWI_msgSize_G3                                                        41Dh      1
+TWI_state_G3                                                          41Eh      1
+TWI_bufPtr_SE                                                          R12      1

@@ -1,0 +1,41 @@
+// Типы пакетов
+#define PT_GETSTATE   1
+#define PT_WRPORT     2
+#define PT_GETINFO    3
+#define PT_SETADDR    4
+#define PT_SETSERIAL  5
+#define PT_RELAY      6
+#define PT_TOPROG     7
+#define PT_PRGINFO    8
+#define PT_WRFLASH    9
+#define PT_WREEPROM   10
+#define PT_TOWORK     11
+#define PT_SETTUNER   64
+#define PT_TUNERSTATE 65
+#define PT_SETLNB     66
+#define PT_CAMPROG    80
+#define PT_CAMPRGNEW  81
+#define PT_CONVSTATE  100
+#define PT_SETCONV    101
+#define PT_SETTBLTRP  120
+#define PT_GETTRPTBL1 121
+#define PT_GETTRPTBL2 122
+#define PT_RESETTBL   123
+#define PT_NEXTTBL    124
+#define PT_NEXTTBL2   125
+#define PT_RESET2DEC  126
+#define PT_SET2DEC    127
+#define PT_CLRPIDS    140
+#define PT_SETPID     141
+#define PT_SCRCTL     160
+#define PT_SCRDATA    161
+#define PT_ENCSTATE   170
+#define PT_SETENC     171
+#define PT_GETENC     172
+                                                                     
+
+	// Флаги состояния
+unsigned char    flags		 = 	0;                              	
+	#define 				 ping				0									// Признак что прошел перыый пинг		
+	#define				dPresent			1									// признак наличия подкл. устройства
+	#define				time_is_Out		2									// Сработал тайм - аут

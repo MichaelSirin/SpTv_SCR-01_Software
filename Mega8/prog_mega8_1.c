@@ -1,0 +1,159 @@
+/*****************************************************
+This program was produced by the
+CodeWizardAVR V1.24.5 Standard
+Automatic Program Generator
+© Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+e-mail:office@hpinfotech.com
+
+Project : 
+Version : 
+Date    : 01.03.2006
+Author  : TeleSys Embedded                
+Company : FastmanSoft Inc.                
+Comments: 
+
+
+Chip type           : ATmega8
+Program type        : Application
+Clock frequency     : 8,000000 MHz
+Memory model        : Small
+External SRAM size  : 0
+Data Stack size     : 256
+*****************************************************/
+
+// Standard Input/Output functions
+#include <stdio.h>
+#include <delay.h>
+#include <string.h>
+  
+#include "CDdef.h"  				// мой описатель
+
+unsigned char rxBufferTWI	[TWI_BUFFER_SIZE];				// приемный буфер  TWI
+unsigned char txBufferTWI	[(TWI_BUFFER_SIZE/2)-25];						// передающий буфер TWI
+unsigned char rxBufferUART	[(TWI_BUFFER_SIZE/2)-25];					// накапливающий приемный буфер UART
+
+unsigned char CountUART = 0, CountUART_1 = 0, Relay_Pack_TWI_UART,  Relay_Pack_UART_TWI;
+unsigned char Count_For_Timer2 , Packet_Lost ;
+ 
+
+// Адреса устройства
+unsigned char lAddr	 	=	 	0x0;				//Логический адрес (адр. подключенного устройства)
+
+// Все для работы с TWI
+TWISR TWI_statusReg;   
+unsigned char 	TWI_slaveAddress = MY_TWI_ADDRESS;		// Own TWI slave address
+
+// Флаги состояния
+bit		gate_UART_to_TWI_open	=		1;					// ретрансляция из UART в TWI
+bit		rxPack								=		0;					// принят пакет																						
+bit		TWI_TX_Packet_Present	=		0;					// есть данные на передачу
+bit 		rxPackUART 						= 		0;					// принят пакет по UART
+bit 		Device_Connected				=		0;					// есть связь с подчиненным
+bit 		InternalPack 						= 		0;					// принят внутренний пакет
+bit		to_Reboot							=		0;					// на перезагрузку в Загрузчик
+bit		Responce_Time_Out			=		0;					// время ожидания ответного пакета истекло
+//bit		lock_PORT						=		1;					// заблокировать COM порт
+
+// USART Receiver interrupt service routine
+interrupt [USART_RXC] void usart_rx_isr(void)      
+{     
+	unsigned char data ;
+	data = UDR;              
+
+	if ((UCSRA & (FRAMING_ERROR | PARITY_ERROR | DATA_OVERRUN))==0)
+	{
+		if (!(CountUART)) 		             		// Прием с начала
+		{ 
+			if (!rxPackUART)           				// предыдущий пакет передан?
+			{
+				CountUART_1 = 0;
+				rxBufferUART [CountUART_1++] = data;
+				CountUART = data;
+			} 
+		}
+		else
+		{                                                  // продолжаем прием пакета
+			rxBufferUART[CountUART_1++] = data;
+			if (!(--CountUART)) 					
+					rxPackUART = 1;              // принят весь пакет
+    	} 
+	}                
+}
+
+void main(void)
+{
+// Declare your local variables here
+
+	LedOff();
+	Initialization_Device();  						// инициализация железа
+
+	// Global enable interrupts
+	#asm("sei")
+
+	// Start the TWI transceiver to enable reseption of the first command from the TWI Master.
+	txBufferTWI[0] = 0;     					// данных на передачу нет
+	TWI_Start_Transceiver();
+
+	LedOn();         
+
+	give_GETINFO();		// отправляем посылку запроса в порт
+                                                     
+    port_state (FALSE);		//блокируем порт
+#ifdef aaa
+    port_state (TRUE);		//блокируем порт
+#endif    
+
+
+    
+	while (1)
+    {     
+
+
+		run_TWI_slave();
+
+		if ( rxPack )
+		{
+
+		 	workINpack();				// принят пакет TWI 
+			rxPack = 0;					// пакет обработан
+		}
+
+
+		// обрабатываем принятый пакетUART
+		if ( rxPackUART )
+		{
+				// проверяем КС
+				if (checkCRCrx ( &UART_RX_Len, from_UART ) )
+				{
+					TCNT1=0x0000;				// при правильном обмене не проверяем адрес подч. устройства
+					LedOff ();						// пришел ответ
+
+					workUARTpack();			// обрабатываем пакет
+				}       
+				
+		rxPackUART = 0;						// пакет обработан 
+		}
+
+		// Таймаут истек. Ошибка устройства
+		if ( Responce_Time_Out ) 
+		{
+			Responce_OK (FALSE);							
+		 	Responce_Time_Out = 0;
+			gate_UART_to_TWI_open = FALSE; 
+
+		 }
+		 
+		//  на перезагрузку в загрузчик
+		if ( to_Reboot )
+		{             
+			if ( ! TWI_TX_Packet_Present )			// ждем пока вычитается ответ 
+			{
+				// На перезагрузку в монитор
+				IVCREG = 1 << IVCE;
+				IVCREG = 1 << IVSEL;
+				#asm("rjmp 0xC00");
+			}
+		}
+     }
+}

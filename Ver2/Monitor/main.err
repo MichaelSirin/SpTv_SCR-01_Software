@@ -1,0 +1,12 @@
+Creating   'main.eep'
+Creating   'main.obj'
+Creating   'main.lst'
+
+Assembling 'main.asm'
+Including  'main.vec'
+Including  'main.inc'
+main.asm(1268) : 
+Assembly complete with 1 error
+
+Deleting   'main.eep'
+Deleting   'main.obj'

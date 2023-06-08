@@ -1,0 +1,85 @@
+// Обмен пакетами с хостом
+#include "monitor.h"   
+#include "CodingM8.h"
+
+        
+   
+
+unsigned char pcrc;	// Контрольная сумма
+unsigned char plen;	// Длина пакета
+unsigned char nbyts;	// Число принятых или переданых байт
+bit prgmode  = 0;		// Находимся в режиме программирования
+
+
+// Прием слова из буффера
+unsigned short GetWordBuff(unsigned char a)
+{
+	register unsigned short ret;  
+
+	ret = 	rxBuffer	[a++];
+	ret |= ((unsigned short)rxBuffer[a]) << 8;
+	
+	return ret;
+} 
+
+// Передача байта в канал
+void PutByte(unsigned char byt)
+{
+	pcrc += byt;
+	nbyts ++;
+	
+	twi_byte(byt);
+}
+
+// Контроль успешного завершения приема пакета
+unsigned char PackOk(void)
+{
+	register unsigned char crc;
+
+	// Сверяю контрольную сумму	
+	crc = pcrc;
+	if (GetByte() != crc)
+	{
+		return 0;
+	}
+
+	// Сверяю длину пакета	
+	if (nbyts != plen)
+	{
+		return 0;
+	}
+	
+	return 1;
+}
+
+// Начало передачи ответного пакета
+void ReplyStart(unsigned char bytes)
+{
+	plen = bytes + 1;
+	pcrc = plen;
+
+	twi_byte(plen);
+}
+
+// Передача содержимого буфера в канал TWI
+void txBuff (void)
+	{
+		unsigned char a;
+
+		twi_byte(0);				  			// 
+		
+		ReplyStart (txBuffer[0] );	 	// передаем длину
+
+		for (a=1; a<txBuffer[0]+1;a++)
+			{       
+			     	twi_byte(txBuffer[a]);
+			     	pcrc+= txBuffer[a];
+			}
+		twi_byte(pcrc);						//передаем КС
+
+		dannForTX = 0;								// передали данные	
+
+		if (toReboot) RebootToWork();			// на перезагрузку
+		
+	}
+

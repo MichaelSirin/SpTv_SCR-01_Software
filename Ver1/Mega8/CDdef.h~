@@ -1,0 +1,113 @@
+    #define IVCREG GICR
+	#define IVCE   0
+	#define IVSEL  1
+
+// Адреса
+#define D_Call 0x80         //Признак адресации к данному устройству (TWI)
+#define G_Call 0x90         //Признак глобальной адресации (TWI)
+#define D_Responce	0xB8	// Передаем в ответ на запрос (TWI) 
+#define Addr_Responce	0xA8	// Адреспри передаче (TWI) 
+
+#define TO_MON  254		// Адрес для работы в режиме монитора
+
+#define RES_OK  1
+#define RES_ERR 0
+
+
+unsigned char pAddr	 	=	 	0x1;				//Физический адрес устройства
+unsigned char lAddr	 	=	 	0x0;				//Логический адрес (адр. подключенного устройства)
+//unsigned char Count1	=	0,  Count	=	0, lPackRX = 0;	
+//unsigned char Count2	=	0,  Count3 =	0, lPackTX = 0;	
+//unsigned char CountUART = 0, CountUART_1 = 0;
+
+
+// Выводы микросхемы
+// Индикация светодиода
+#define LedOn()       {  PORTD.3=0;}
+#define LedOff()       {  PORTD.3=1;}    
+#define LedInv()		 {	 PORTD.3 = !( PORTD.3);}
+
+#define testpin			 PORTD.2				// тестовый пин
+		
+
+// Биты TWCR
+#define TWINT 7             //Флаг прерывания выполнения задачи
+#define TWEA  6             //Генерить ли бит ответа на вызов
+#define TWSTA 5             //Генерить СТАРТ
+#define TWSTO 4             //Генерить СТОП
+#define TWWC  3             //
+#define TWEN  2             //Разрешаем работу I2C
+#define TWIE  0             //Прерывание
+
+
+// Типы пакетов
+#define PT_GETSTATE   1
+#define PT_WRPORT     2
+#define PT_GETINFO    3
+#define PT_SETADDR    4
+#define PT_SETSERIAL  5
+#define PT_RELAY      6
+#define PT_TOPROG     7
+#define PT_PRGINFO    8
+#define PT_WRFLASH    9
+#define PT_WREEPROM   10
+#define PT_TOWORK     11
+#define PT_SETTUNER   64
+#define PT_TUNERSTATE 65
+#define PT_SETLNB     66
+#define PT_CAMPROG    80
+#define PT_CAMPRGNEW  81
+#define PT_CONVSTATE  100
+#define PT_SETCONV    101
+#define PT_SETTBLTRP  120
+#define PT_GETTRPTBL1 121
+#define PT_GETTRPTBL2 122
+#define PT_RESETTBL   123
+#define PT_NEXTTBL    124
+#define PT_NEXTTBL2   125
+#define PT_RESET2DEC  126
+#define PT_SET2DEC    127
+#define PT_CLRPIDS    140
+#define PT_SETPID     141
+#define PT_SCRCTL     160
+#define PT_SCRDATA    161
+#define PT_ENCSTATE   170
+#define PT_SETENC     171
+#define PT_GETENC     172        
+
+// Пакеты, используемые внутри CD
+#define startPing				0xAA			// признак пинга при опросе количества устройств   
+#define startPack			'q'					// признак начала пакета
+
+#define GetLogAddr		1		// дать логический адрес 
+#define pingPack			2		// нас пингуют на наличие информации на передачу
+#define OP					100		// пакеты для отладки
+//#define GetLogAddr		200		// дать логический адрес 
+//#define pingPack			201		// нас пингуют на наличие информации на передачу
+//#define OP					202		// пакеты для отладки
+
+	
+// Функции
+void workINpack ( void );	
+unsigned char checkCRCrx (void);		
+void readAddrDevice (void);  
+unsigned char checkCRCtx (void);
+void _OP (unsigned char c);
+
+
+#define RXB8 1
+#define TXB8 0
+#define UPE 2
+#define OVR 3
+#define FE 4
+#define UDRE 5
+#define RXC 7
+
+#define FRAMING_ERROR (1<<FE)
+#define PARITY_ERROR (1<<UPE)
+#define DATA_OVERRUN (1<<OVR)
+#define DATA_REGISTER_EMPTY (1<<UDRE)
+#define RX_COMPLETE (1<<RXC)
+
+				
+

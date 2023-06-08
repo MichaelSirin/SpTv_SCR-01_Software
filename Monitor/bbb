@@ -1,0 +1,34 @@
+ Volume in drive Z has no label.
+ Volume Serial Number is F048-1714
+
+ Directory of Z:\Michael\C_CodeVision\CodingDevice\Monitor
+
+09.09.2008  16:57    <DIR>          .
+09.09.2008  16:57    <DIR>          ..
+09.09.2008  16:57                 0 bbb
+16.04.2007  17:38             2ÿ484 comm.c
+09.03.2006  06:54             2ÿ311 comm.c~
+11.04.2007  12:18             1ÿ273 commTWI.c
+11.04.2007  12:17             1ÿ271 commTWI.c~
+12.02.2004  03:50               745 descrambler.c
+04.03.2008  13:38            96ÿ916 main.asm
+29.01.2008  16:42            12ÿ080 main.c
+04.03.2008  13:38            31ÿ137 main.cof
+13.04.2007  12:09            12ÿ076 main.c~
+04.03.2008  13:38               118 main.eep
+09.03.2006  03:45               239 main.err
+04.03.2008  13:38             5ÿ765 main.hex
+04.03.2008  13:38               624 main.inc
+04.03.2008  13:38           162ÿ506 main.lst
+04.03.2008  13:38             1ÿ939 main.map
+04.03.2008  13:38            10ÿ274 main.obj
+04.03.2008  13:38            13ÿ286 main.rom
+04.03.2008  13:38               276 main.vec
+25.04.2007  09:40             2ÿ339 main_cof.aps
+04.03.2008  13:38            46ÿ659 main__.c
+16.04.2007  16:29             4ÿ185 monitor.h
+23.06.2006  15:15             4ÿ191 monitor.h~
+16.04.2007  16:36             4ÿ464 spm.c
+10.04.2007  18:14             4ÿ146 spm.c~
+              25 File(s)        421ÿ304 bytes
+               2 Dir(s)   9ÿ492ÿ000ÿ768 bytes free

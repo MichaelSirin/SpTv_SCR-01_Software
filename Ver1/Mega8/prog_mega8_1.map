@@ -1,0 +1,30 @@
+CodeVisionAVR C Compiler V1.24.7e Professional
+(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+File: c:\users\michael\c_cvision\codingdevice\mega8\prog_mega8_1.c
+Global variables memory map:
+
+Variable                          Address   Size
+pAddr                                                                   R4      1
+lAddr                                                                   R5      1
+rxBuffer                                                              160h    256
+txBuffer                                                              260h    256
+Count1                                                                  R6      1
+Count                                                                   R7      1
+CRCPackRX                                                               R8      1
+Count2                                                                  R9      1
+Count3                                                                 R10      1
+CountUART                                                              R11      1
+CountUART_1                                                            R12      1
+ping                                                                  R2.0    1/8
+dPresent                                                              R2.1    1/8
+time_is_Out                                                           R2.2    1/8
+startPacket                                                           R2.3    1/8
+rxPack                                                                R2.4    1/8
+txPack                                                                R2.5    1/8
+rxPackUART                                                            R2.6    1/8
+tstPort                                                               R2.7    1/8
+GlobalAddr                                                            R3.0    1/8
+to_Reboot                                                             R3.1    1/8
+print                                                                 R3.2    1/8

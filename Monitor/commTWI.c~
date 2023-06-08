@@ -1,0 +1,61 @@
+// Обмен пакетами с хостом
+#include "monitor.h"   
+#include "CodingM8.h"
+
+        
+   
+
+//unsigned char pcrc;	// Контрольная сумма
+//unsigned char plen;	// Длина пакета
+//unsigned char nbyts;	// Число принятых или переданых байт
+bit prgmode  = 0;		// Находимся в режиме программирования
+
+
+// Прием слова из буффера
+unsigned short GetWordBuff(unsigned char a)
+{
+	register unsigned short ret;  
+
+//	ret = 	rxBufferTWI	[a++];
+//	ret |= ((unsigned short)rxBufferTWI[a]) << 8;
+
+	// дискремблируем
+	ret = ( rxBufferTWI	[a++] ^ NextSeqByte() );
+	ret |= ((unsigned short)rxBufferTWI[a] ^ NextSeqByte() ) << 8;
+
+	return ret;
+} 
+
+/*
+// Начало передачи ответного пакета
+void ReplyStart(unsigned char bytes)
+{
+	plen = bytes + 1;
+	pcrc = plen;
+
+//	twi_byte(plen);
+} */
+
+/*
+// Передача содержимого буфера в канал TWI
+void txBuff (void)
+	{
+		unsigned char a;
+
+//		twi_byte(0);				  			// 
+		
+		ReplyStart (txBufferTWI[0] );	 	// передаем длину
+
+		for (a=1; a<txBufferTWI[0]+1;a++)
+			{       
+//			     	twi_byte(txBuffer[a]);
+			     	pcrc+= txBufferTWI[a];
+			}
+//		twi_byte(pcrc);						//передаем КС
+
+		TWI_TX_Packet_Present = 0;								// передали данные	
+
+//		if (toReboot) RebootToWork();			// на перезагрузку
+		
+	}*/
+

@@ -1,0 +1,508 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Управляющая программа 
+//  Подчиненные устройства сами сообщают о своем состоянии.
+
+#include "Coding.h"
+
+#ifdef print
+const flash unsigned long update_program_ser_num = 0;			// номер устройства, в кот. работает закрытие
+#else 
+const flash unsigned long update_program_ser_num = 13;			// номер устройства, в кот. работает закрытие
+#endif
+
+flash u8 device_name[32] =	"Scrambling Device";       	// Имя устройства                                                  
+const flash unsigned short my_version = 0x0208;			// Версия софта 
+eeprom unsigned char my_addr = TO_MON;					// Мой адрес - изначально TO_MON
+eeprom unsigned long my_ser_num = 0;				// Серийный номер устройства
+
+
+eeprom u8 f_buff_prog[len_prog_bin] = {0x01,0xff,0x7f};		// храним копию файла prog (+1 т.к. храню еще 1-й байт)
+u8	eeprom *eefprog = 0;
+
+u8 txBuffer 			[TWI_BUFFER_SIZE];			//буфер передатчика TWI
+u8 buff_wyh_paket	[TWI_BUFFER_SIZE];			//буфер для генерации выходного пакета
+u8 rxBuffer 			[TWI_BUFFER_SIZE / 2];		//буфер приемника TWI
+
+
+flash u8 int_Devices		=	8;	//8			// количество подчиненных устройств
+u8 lAddrDevice	[16];				// храним лог. адреса подключенных устройств
+											// 0 ячейка - кол-во портов 232 .1 ячейка содержит лог. адрес порта 1, 2-лог.
+											// адрес порта 2 и т. д.  
+
+u8 counter_ciklov = 0;
+u8 Combine_Responce_GEN_CALL = 0;	// собираем ответы при GEN CALL
+u8 reflection_active_PORTS	=	0;			// зеркало портов (1-активен, 0 - не активен)
+
+bit EndTimePack = 0;				// таймаут передачи пакетов закрытия
+bit intScremblerON	=	0;			// работает внутренний скремблер
+bit CF_card_INI_OK	=	0;			// признак удачно проинициализированной CF карты
+bit prog_bin_mode		=	0;			// режим открытого prog.bin файла 0-rd_file; 1-wr_file
+
+
+strInPack * str = (strInPack *)(rx0buf);
+strDataPack * str1 = (strDataPack *)(rx0buf);
+
+// Указатели для CRYPT
+//FILE * fu;				//обьявляется переменная для указателя входного файла s userami
+FILE * fprog;			//обьявляется переменная для указателя входного файла s programmami
+FILE * fprogflas;
+
+
+#ifdef print_from_pin
+#define _ALTERNATE_PUTCHAR_
+void putchar(char c)
+{
+	putchar2 (c);
+}               
+#endif
+
+
+
+
+
+
+typedef struct _chip_port
+{
+	flash char name[16];
+	flash unsigned char addr;
+} CHIPPORT;
+
+CHIPPORT cp[] = {"Port  RS-232 №", 0};
+
+// Все для работы с TWI
+TWISR TWI_statusReg;   
+unsigned char  TWI_operation=0;
+
+//unsigned char TWI_targetSlaveAddress;
+
+//-----------------------------------------------------------------------------------------------------------------
+// Возвращаю состояние устройства
+static void GetState(void)
+{
+	register unsigned char i, n, b;
+	
+	#define strq  ((RQ_GETSTATE *)rx0buf)
+
+	switch(strq->page)
+	{
+	case 0:
+		StartReply(2 + 16 + 1);
+
+		putchar0(2);               						 // число доступных страниц, включая эту
+		putchar0(0);										// зарезервирован
+		
+
+			for (i = 0; i < 15; i ++)
+			{
+				b = cp[0].name[i];
+				if (!b)	break;
+				putchar0(b);
+			}
+				
+
+			while(i < 15)
+			{
+				putchar0(' ');
+				i++;
+			}
+			
+			putchar0(cp[n].addr);
+		
+		putchar0(255);
+
+		EndReply();
+		return;
+
+	case 1:
+	
+		StartReply(3 * int_Devices + 1);
+		
+		for (n = 0; n < int_Devices; n++)
+		{
+			putchar0(0);
+			putchar0( n+1 );
+#pragma warn-
+			putchar0((u8)lAddrDevice [n+1]);
+#pragma warn+
+		}
+
+		putchar0(255);
+
+		EndReply();
+		return;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Информация об устройстве
+static void GetInfo(void)
+{
+	register unsigned char i;
+	
+	// 	Начинаю передачу ответа
+	StartReply(40);
+	
+	for (i = 0; i < 32; i ++)	// Имя устройства
+	{
+		putchar0(device_name[i]);
+	}
+
+	putword0(my_ser_num);		// Серийный номер
+	putword0(my_ser_num >> 16);	
+	
+	putchar0(my_addr);			// Адрес устройстав
+
+	putchar0(0);				// Зарезервированный байт
+	
+	putword0(my_version);		// Версия
+	
+	EndReply();					// Завершаю ответ
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Смена адреса устройства
+static void SetAddr(void)
+{
+	#define sap ((RQ_SETADDR *)rx0buf)
+	
+	my_addr = sap->addr;
+	
+	StartReply(1);
+	putchar0(RES_OK);
+	EndReply();
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Назначение серийного номера устройства
+static void SetSerial(void)
+{
+	#define ssp ((RQ_SETSERIAL *)rx0buf)
+	
+	if (my_ser_num)
+	{
+		StartReply(1);
+		putchar0(RES_ERR);
+		EndReply();
+		return;
+	}
+	
+	my_ser_num = ssp->num;
+	
+	StartReply(1);
+	putchar0(RES_OK);
+	EndReply();
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Перезагрузка в режим программирования
+static void ToProg(void)
+{
+	// Отправляю ответ
+	StartReply(0);
+	EndReply();
+
+	// На перезагрузку в монитор
+	MCUCR = 1 << IVCE;
+	MCUCR = 1 << IVSEL;
+
+	#asm("jmp 0xFC00");
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Железо процессора в исходное состояние
+static void HardwareInit(void)
+{         
+        TWI_Master_Initialise();
+		CommInit();				// Инициализация  COM-порта
+		timer_0_Init ();			// Инициализируем таймер 0 (таймаут TWI)
+		timer_2_Init ();			// Инициализируем таймер 2 (таймаут пакетов закрытия)
+		timer_3_Init  ();			// Инициализируем таймер 3 (таймаут пакетов закрытия)
+		portInit();					// Выводы - в исходное состояние
+		
+		// Вотчдог
+		#ifdef WD_active
+		WDTCR=0x1F;
+		WDTCR=0x0F;   
+		#endif           
+
+        
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Сброс периферии
+void ResetPeripherial(void)
+{
+		DDRA.2 = 1;		// RESET подчиненных процессоров
+        CRST = 0;
+        delay_ms(10);
+        CRST = 1;
+		DDRA.2 = 0;
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Точка входа в программу
+void main(void)
+{
+
+u8 TWI_targetSlaveAddress, a,counter_Responce = 0;
+
+  TWI_targetSlaveAddress   = 0x10;
+
+
+//	Пока происходят внутренние работы светодиод - красный. По окончании - зеленый.
+
+    LedRed();               
+	HardwareInit();				// Железо процессора
+
+	#asm("sei")
+
+	ResetPeripherial();		// Сбрасываю периферию 
+	delay_ms (3000);					// даем время отработать сброс
+
+	// активируем TWI	
+    txBuffer[0] = (TWI_GEN_CALL<< TWI_ADR_BITS) | (FALSE<<TWI_READ_BIT);
+	txBuffer[1] = TWI_CMD_MASTER_READ;             // The first byte is used for commands.
+	TWI_Start_Transceiver_With_Data( txBuffer, 2 );
+
+	UCSR0B.3 = 1;		 				// Разрешаю передатчик UART
+
+	#ifdef print
+	printf ("Start program \r\n");
+	#endif
+
+	if (my_ser_num == update_program_ser_num)
+	{
+		// работаем с карточкой...
+		#ifdef print
+		printf ("Scrambling ON! \r\n");
+		#endif
+		if (initialize_media())							// инициализация CF Card   
+		{
+
+//format_CF();
+				CF_card_INI_OK = 1;
+				#ifdef print
+				printf ("Ini CF - OK! \r\n");
+				#endif
+
+				open_user_bin (rd_file);  // открываем БД юзеров (prog.bin)
+				 
+		}
+		else
+		{
+		 		#ifdef print
+				printf ("Ini CF - Error! \r\n");
+				#endif
+		}
+	}
+
+	for (a=1; a<= int_Devices; a++)	     		   		// разблокируем порты
+	{
+		unlock_Pack(a);
+	}
+// ---------------------------------------------------------------------------------------------------------------------
+while (1)
+{
+	#asm("wdr");					// 	сброс WD
+
+	LedGreen(); 
+
+		//					-------------------		TWI	---------------------
+//	for (a=1+offset; a<= int_Devices+offset; a++)	     		   			// вычитываем у кого что есть
+	for (a=1; a<= int_Devices; a++)	     		   			// вычитываем у кого что есть
+	{
+		// подчиненные устройства - c адреса 0х01
+		 if ( pingPack (a) )
+		 { 
+ 			if ( Incoming_Pack_TWI == Internal_Packet )
+		 	{
+				switch (Incoming_Inernal_Information_TWI)
+				{
+					case GetLogAddr:            						// пришел лог. адрес
+						check_incoming_LOG_ADDR (a);
+						break;
+
+					case Responce_GEN_CALL:				// пришло подтверждение GEN CALL
+						Combine_Responce_GEN_CALL |=  ( rxBuffer[5] & 1 ) <<  ( a - 1);    
+						counter_Responce &= (1 <<  ( a - 1)) ^-1;
+
+						if (counter_Responce == 0 )
+						{
+								if ( Combine_Responce_GEN_CALL != reflection_active_PORTS )
+										Reply (FALSE);		// ошибка передачи
+								else 	Reply (TRUE);															// передача удалась
+								
+//								EndTimePack = TRUE;		// разрешаем скремблер
+						}                                  
+						break;
+
+					case Responce_GEN_CALL_internal:			// ответы для внутр. скремблера
+						#ifdef print
+						printf ("Resp Int Scremb \r\n");
+						#endif
+
+						Combine_Responce_GEN_CALL |=  ( rxBuffer[5] & 1 ) <<  ( a - 1);    
+						counter_Responce &= (1 <<  ( a - 1)) ^-1;
+
+						if (counter_Responce == 0 )
+						{
+						#ifdef print
+						printf ("Resp OK! Scremb ON! \r\n");
+						#endif
+							EndTimePack = TRUE;		// разрешаем скремблер
+						}
+
+						break;
+
+						
+					default:	
+						break;
+				}		
+		 	}
+		 	else 	// пакет для ретрансляции
+			{
+				#ifdef print
+				printf ("Relay TWI_UART \r\n");
+				#endif
+
+				Transmitt_from_TWI_to_UART ( &rxBuffer[3] );
+			}
+		 }
+		 else // нет полезной информации во внутр. канале
+		 {           
+		 
+		 }
+	 }
+
+			 
+
+		// Проверяю пакет ---------------		UART		-----------------------
+		if (HaveIncomingPack())
+		{
+			scrambOff();							// при получении пакета выключаем скремблер на 8сек
+
+			if ((rx0addr == my_addr) || (rx0addr == TO_ALL))				// адрес мой 
+			{
+				#ifdef print
+				printf ("Have Incoming Pack \r\n");
+				#endif
+
+				switch(IncomingPackType())
+				{
+					case PT_GETSTATE:
+							GetState();
+							break;
+				
+					case PT_GETINFO:
+							GetInfo();
+							break;
+				
+					case PT_SETADDR:
+							SetAddr();
+							break;
+				
+					case PT_SETSERIAL:
+							SetSerial();
+							break;
+		
+					case PT_TOPROG:
+							ToProg();
+							break;      
+
+					// ретрансляция пакета в TWI при MY_ADDR или 255. Приемник -  подчиненные
+					// процессоры (только один).
+					case PT_RELAY:           			
+
+//						    if ( ! ( Relay_pack_from_UART_to_TWI_Internal (rx0buf [0]+offset) ) )	Reply (FALSE);					//ошибка
+						    if ( ! ( Relay_pack_from_UART_to_TWI_Internal (rx0buf [0]) ) )	Reply (FALSE);					//ошибка
+							#ifdef print
+							printf ("Relay to Internal PT_RELAY \r\n");
+							#endif
+							Combine_Responce_GEN_CALL = 0;	// сброс счетчиков приема подтверждений
+							counter_Responce = reflection_active_PORTS;
+
+							DiscardIncomingPack();        // разрешаем принимать след. пакет
+        	   				break;
+
+					case PT_CF_CARD:						// пакеты для работы с CF Flash
+							flash_Work();
+
+							DiscardIncomingPack();
+           					break;
+
+					case PT_SCRCTL:
+					case PT_SCRDATA:    
+				#ifdef print
+				printf ("Relay to Internal PT_SCRCTR or PT_SCRDATA\r\n");
+				#endif
+							Relay_pack_from_UART_to_TWI(Internal_Packet);
+							Combine_Responce_GEN_CALL = 0;	// сброс счетчиков приема подтверждений
+							counter_Responce = reflection_active_PORTS;
+
+							DiscardIncomingPack();
+           					break;
+
+           					
+					case PT_DESCRUPD:    
+				#ifdef print
+				printf ("Relay to Internal PT_DESCRUPD\r\n");
+				#endif
+                        ModifyKey ();									// подменяем текущий ключ
+						Relay_pack_from_UART_to_TWI(Internal_Packet);
+
+							Combine_Responce_GEN_CALL = 0;	// сброс счетчиков приема подтверждений
+							counter_Responce = reflection_active_PORTS;
+
+							DiscardIncomingPack();
+           					break;    
+                			
+					default:
+							DiscardIncomingPack();
+							break;
+				}
+		    }
+		   	else																// ретранслируем
+			{                                                                     
+				#ifdef print
+				printf ("Relay Pack \r\n");
+				#endif
+
+
+		        if ( ! Searching_Port_for_Relay () ) 
+		        {
+					#ifdef print
+					printf ("port for Relay Pack not FOUND!\r\n");
+					printf ("Incoming PORT-%x!\r\n",rx0addr);
+					#endif
+		        	Reply (FALSE);		// передаем ошибку
+	    	    }
+				DiscardIncomingPack();        // разрешаем принимать след. пакет
+			}
+		}
+		
+
+		//					-------------------		Scrambler	---------------------
+		// если карта проинициализировалась - запускаем скремблирование
+		
+		if (CF_card_INI_OK)				
+		{
+			if (EndTimePack == TRUE) 		// таймер разрешения
+			{
+				if (reflection_active_PORTS != 0)	// если нет подкл. устойств - не скремблируем
+				{
+					#ifdef print
+					printf ("Scrambling... \r\n");
+					#endif
+
+					scrambling();   		// создаем свои пакеты для передачи в линию
+					timeOutPackStart();
+					LedRed(); 
+
+					Combine_Responce_GEN_CALL = 0;	// сброс счетчиков приема подтверждений
+					counter_Responce = reflection_active_PORTS;
+				}
+
+			}
+		}	
+}
+}    	

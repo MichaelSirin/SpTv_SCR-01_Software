@@ -1,0 +1,4135 @@
+
+AVRASM ver. 2.1.2  prog_mega8_1.asm Fri Oct 23 15:51:37 2009
+
+prog_mega8_1.asm(937): Including file 'prog_mega8_1.vec'
+prog_mega8_1.asm(938): Including file 'prog_mega8_1.inc'
+prog_mega8_1.inc(2): warning: Register r4 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(3): warning: Register r5 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(4): warning: Register r6 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(5): warning: Register r7 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(6): warning: Register r8 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(7): warning: Register r9 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(8): warning: Register r10 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(9): warning: Register r11 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+prog_mega8_1.inc(14): warning: Register r12 already defined by the .DEF directive
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+                 
+                 
+                 ;(C) Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+                 ;http://www.hpinfotech.com
+                 
+                 ;Chip type              : ATmega8
+                 ;Program type           : Application
+                 ;Clock frequency        : 8,000000 MHz
+                 ;Memory model           : Small
+                 ;Optimize for           : Size
+                 ;(s)printf features     : int, width
+                 ;(s)scanf features      : int, width
+                 ;External SRAM size     : 0
+                 ;Data Stack size        : 256 byte(s)
+                 ;Heap size              : 0 byte(s)
+                 ;Promote char to int    : No
+                 ;char is unsigned       : Yes
+                 ;8 bit enums            : Yes
+                 ;Word align FLASH struct: No
+                 ;Enhanced core instructions    : On
+                 ;Automatic register allocation : On
+                 
+                 	#pragma AVRPART ADMIN PART_NAME ATmega8
+                 	#pragma AVRPART MEMORY PROG_FLASH 8192
+                 	#pragma AVRPART MEMORY EEPROM 512
+                 	#pragma AVRPART MEMORY INT_SRAM SIZE 1024
+                 	#pragma AVRPART MEMORY INT_SRAM START_ADDR 0x60
+                 
+                 	.EQU UDRE=0x5
+                 	.EQU RXC=0x7
+                 	.EQU USR=0xB
+                 	.EQU UDR=0xC
+                 	.EQU SPSR=0xE
+                 	.EQU SPDR=0xF
+                 	.EQU EERE=0x0
+                 	.EQU EEWE=0x1
+                 	.EQU EEMWE=0x2
+                 	.EQU EECR=0x1C
+                 	.EQU EEDR=0x1D
+                 	.EQU EEARL=0x1E
+                 	.EQU EEARH=0x1F
+                 	.EQU WDTCR=0x21
+                 	.EQU MCUCR=0x35
+                 	.EQU GICR=0x3B
+                 	.EQU SPL=0x3D
+                 	.EQU SPH=0x3E
+                 	.EQU SREG=0x3F
+                 
+                 	.DEF R0X0=R0
+                 	.DEF R0X1=R1
+                 	.DEF R0X2=R2
+                 	.DEF R0X3=R3
+                 	.DEF R0X4=R4
+                 	.DEF R0X5=R5
+                 	.DEF R0X6=R6
+                 	.DEF R0X7=R7
+                 	.DEF R0X8=R8
+                 	.DEF R0X9=R9
+                 	.DEF R0XA=R10
+                 	.DEF R0XB=R11
+                 	.DEF R0XC=R12
+                 	.DEF R0XD=R13
+                 	.DEF R0XE=R14
+                 	.DEF R0XF=R15
+                 	.DEF R0X10=R16
+                 	.DEF R0X11=R17
+                 	.DEF R0X12=R18
+                 	.DEF R0X13=R19
+                 	.DEF R0X14=R20
+                 	.DEF R0X15=R21
+                 	.DEF R0X16=R22
+                 	.DEF R0X17=R23
+                 	.DEF R0X18=R24
+                 	.DEF R0X19=R25
+                 	.DEF R0X1A=R26
+                 	.DEF R0X1B=R27
+                 	.DEF R0X1C=R28
+                 	.DEF R0X1D=R29
+                 	.DEF R0X1E=R30
+                 	.DEF R0X1F=R31
+                 
+                 	.EQU __se_bit=0x80
+                 	.EQU __sm_mask=0x70
+                 	.EQU __sm_adc_noise_red=0x10
+                 	.EQU __sm_powerdown=0x20
+                 	.EQU __sm_powersave=0x30
+                 	.EQU __sm_standby=0x60
+                 	.EQU __sm_ext_standby=0x70
+                 
+                 	.MACRO __CPD1N
+                 	CPI  R30,LOW(@0)
+                 	LDI  R26,HIGH(@0)
+                 	CPC  R31,R26
+                 	LDI  R26,BYTE3(@0)
+                 	CPC  R22,R26
+                 	LDI  R26,BYTE4(@0)
+                 	CPC  R23,R26
+                 	.ENDM
+                 
+                 	.MACRO __CPD2N
+                 	CPI  R26,LOW(@0)
+                 	LDI  R30,HIGH(@0)
+                 	CPC  R27,R30
+                 	LDI  R30,BYTE3(@0)
+                 	CPC  R24,R30
+                 	LDI  R30,BYTE4(@0)
+                 	CPC  R25,R30
+                 	.ENDM
+                 
+                 	.MACRO __CPWRR
+                 	CP   R@0,R@2
+                 	CPC  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __CPWRN
+                 	CPI  R@0,LOW(@2)
+                 	LDI  R30,HIGH(@2)
+                 	CPC  R@1,R30
+                 	.ENDM
+                 
+                 	.MACRO __ADDB1MN
+                 	SUBI R30,LOW(-@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDB2MN
+                 	SUBI R26,LOW(-@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDW1MN
+                 	SUBI R30,LOW(-@0-(@1))
+                 	SBCI R31,HIGH(-@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDW2MN
+                 	SUBI R26,LOW(-@0-(@1))
+                 	SBCI R27,HIGH(-@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDW1FN
+                 	SUBI R30,LOW(-2*@0-(@1))
+                 	SBCI R31,HIGH(-2*@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDD1FN
+                 	SUBI R30,LOW(-2*@0-(@1))
+                 	SBCI R31,HIGH(-2*@0-(@1))
+                 	SBCI R22,BYTE3(-2*@0-(@1))
+                 	.ENDM
+                 	.MACRO __ADDD1N
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	SBCI R22,BYTE3(-@0)
+                 	SBCI R23,BYTE4(-@0)
+                 	.ENDM
+                 
+                 	.MACRO __ADDD2N
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	SBCI R24,BYTE3(-@0)
+                 	SBCI R25,BYTE4(-@0)
+                 	.ENDM
+                 
+                 	.MACRO __SUBD1N
+                 	SUBI R30,LOW(@0)
+                 	SBCI R31,HIGH(@0)
+                 	SBCI R22,BYTE3(@0)
+                 	SBCI R23,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __SUBD2N
+                 	SUBI R26,LOW(@0)
+                 	SBCI R27,HIGH(@0)
+                 	SBCI R24,BYTE3(@0)
+                 	SBCI R25,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __ANDD1N
+                 	ANDI R30,LOW(@0)
+                 	ANDI R31,HIGH(@0)
+                 	ANDI R22,BYTE3(@0)
+                 	ANDI R23,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __ORD1N
+                 	ORI  R30,LOW(@0)
+                 	ORI  R31,HIGH(@0)
+                 	ORI  R22,BYTE3(@0)
+                 	ORI  R23,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __DELAY_USB
+                 	LDI  R24,LOW(@0)
+                 __DELAY_USB_LOOP:
+                 	DEC  R24
+                 	BRNE __DELAY_USB_LOOP
+                 	.ENDM
+                 
+                 	.MACRO __DELAY_USW
+                 	LDI  R24,LOW(@0)
+                 	LDI  R25,HIGH(@0)
+                 __DELAY_USW_LOOP:
+                 	SBIW R24,1
+                 	BRNE __DELAY_USW_LOOP
+                 	.ENDM
+                 
+                 	.MACRO __CLRD1S
+                 	LDI  R30,0
+                 	STD  Y+@0,R30
+                 	STD  Y+@0+1,R30
+                 	STD  Y+@0+2,R30
+                 	STD  Y+@0+3,R30
+                 	.ENDM
+                 
+                 	.MACRO __GETD1S
+                 	LDD  R30,Y+@0
+                 	LDD  R31,Y+@0+1
+                 	LDD  R22,Y+@0+2
+                 	LDD  R23,Y+@0+3
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1S
+                 	STD  Y+@0,R30
+                 	STD  Y+@0+1,R31
+                 	STD  Y+@0+2,R22
+                 	STD  Y+@0+3,R23
+                 	.ENDM
+                 
+                 	.MACRO __PUTD2S
+                 	STD  Y+@0,R26
+                 	STD  Y+@0+1,R27
+                 	STD  Y+@0+2,R24
+                 	STD  Y+@0+3,R25
+                 	.ENDM
+                 
+                 	.MACRO __POINTB1MN
+                 	LDI  R30,LOW(@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTW1MN
+                 	LDI  R30,LOW(@0+@1)
+                 	LDI  R31,HIGH(@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTW1FN
+                 	LDI  R30,LOW(2*@0+@1)
+                 	LDI  R31,HIGH(2*@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTD1FN
+                 	LDI  R30,LOW(2*@0+@1)
+                 	LDI  R31,HIGH(2*@0+@1)
+                 	LDI  R22,BYTE3(2*@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTB2MN
+                 	LDI  R26,LOW(@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTW2MN
+                 	LDI  R26,LOW(@0+@1)
+                 	LDI  R27,HIGH(@0+@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTBRM
+                 	LDI  R@0,LOW(@1)
+                 	.ENDM
+                 
+                 	.MACRO __POINTWRM
+                 	LDI  R@0,LOW(@2)
+                 	LDI  R@1,HIGH(@2)
+                 	.ENDM
+                 
+                 	.MACRO __POINTBRMN
+                 	LDI  R@0,LOW(@1+@2)
+                 	.ENDM
+                 
+                 	.MACRO __POINTWRMN
+                 	LDI  R@0,LOW(@2+@3)
+                 	LDI  R@1,HIGH(@2+@3)
+                 	.ENDM
+                 
+                 	.MACRO __POINTWRFN
+                 	LDI  R@0,LOW(@2*2+@3)
+                 	LDI  R@1,HIGH(@2*2+@3)
+                 	.ENDM
+                 
+                 	.MACRO __GETD1N
+                 	LDI  R30,LOW(@0)
+                 	LDI  R31,HIGH(@0)
+                 	LDI  R22,BYTE3(@0)
+                 	LDI  R23,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __GETD2N
+                 	LDI  R26,LOW(@0)
+                 	LDI  R27,HIGH(@0)
+                 	LDI  R24,BYTE3(@0)
+                 	LDI  R25,BYTE4(@0)
+                 	.ENDM
+                 
+                 	.MACRO __GETD2S
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	LDD  R24,Y+@0+2
+                 	LDD  R25,Y+@0+3
+                 	.ENDM
+                 
+                 	.MACRO __GETB1MN
+                 	LDS  R30,@0+@1
+                 	.ENDM
+                 
+                 	.MACRO __GETB1HMN
+                 	LDS  R31,@0+@1
+                 	.ENDM
+                 
+                 	.MACRO __GETW1MN
+                 	LDS  R30,@0+@1
+                 	LDS  R31,@0+@1+1
+                 	.ENDM
+                 
+                 	.MACRO __GETD1MN
+                 	LDS  R30,@0+@1
+                 	LDS  R31,@0+@1+1
+                 	LDS  R22,@0+@1+2
+                 	LDS  R23,@0+@1+3
+                 	.ENDM
+                 
+                 	.MACRO __GETBRMN
+                 	LDS  R@0,@1+@2
+                 	.ENDM
+                 
+                 	.MACRO __GETWRMN
+                 	LDS  R@0,@2+@3
+                 	LDS  R@1,@2+@3+1
+                 	.ENDM
+                 
+                 	.MACRO __GETWRZ
+                 	LDD  R@0,Z+@2
+                 	LDD  R@1,Z+@2+1
+                 	.ENDM
+                 
+                 	.MACRO __GETD2Z
+                 	LDD  R26,Z+@0
+                 	LDD  R27,Z+@0+1
+                 	LDD  R24,Z+@0+2
+                 	LDD  R25,Z+@0+3
+                 	.ENDM
+                 
+                 	.MACRO __GETB2MN
+                 	LDS  R26,@0+@1
+                 	.ENDM
+                 
+                 	.MACRO __GETW2MN
+                 	LDS  R26,@0+@1
+                 	LDS  R27,@0+@1+1
+                 	.ENDM
+                 
+                 	.MACRO __GETD2MN
+                 	LDS  R26,@0+@1
+                 	LDS  R27,@0+@1+1
+                 	LDS  R24,@0+@1+2
+                 	LDS  R25,@0+@1+3
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1MN
+                 	STS  @0+@1,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1MN
+                 	STS  @0+@1,R30
+                 	STS  @0+@1+1,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1MN
+                 	STS  @0+@1,R30
+                 	STS  @0+@1+1,R31
+                 	STS  @0+@1+2,R22
+                 	STS  @0+@1+3,R23
+                 	.ENDM
+                 
+                 	.MACRO __PUTDZ2
+                 	STD  Z+@0,R26
+                 	STD  Z+@0+1,R27
+                 	STD  Z+@0+2,R24
+                 	STD  Z+@0+3,R25
+                 	.ENDM
+                 
+                 	.MACRO __PUTBMRN
+                 	STS  @0+@1,R@2
+                 	.ENDM
+                 
+                 	.MACRO __PUTWMRN
+                 	STS  @0+@1,R@2
+                 	STS  @0+@1+1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __PUTBZR
+                 	STD  Z+@1,R@0
+                 	.ENDM
+                 
+                 	.MACRO __PUTWZR
+                 	STD  Z+@2,R@0
+                 	STD  Z+@2+1,R@1
+                 	.ENDM
+                 
+                 	.MACRO __GETW1R
+                 	MOV  R30,R@0
+                 	MOV  R31,R@1
+                 	.ENDM
+                 
+                 	.MACRO __GETW2R
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	.ENDM
+                 
+                 	.MACRO __GETWRN
+                 	LDI  R@0,LOW(@2)
+                 	LDI  R@1,HIGH(@2)
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1R
+                 	MOV  R@0,R30
+                 	MOV  R@1,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTW2R
+                 	MOV  R@0,R26
+                 	MOV  R@1,R27
+                 	.ENDM
+                 
+                 	.MACRO __ADDWRN
+                 	SUBI R@0,LOW(-@2)
+                 	SBCI R@1,HIGH(-@2)
+                 	.ENDM
+                 
+                 	.MACRO __ADDWRR
+                 	ADD  R@0,R@2
+                 	ADC  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __SUBWRN
+                 	SUBI R@0,LOW(@2)
+                 	SBCI R@1,HIGH(@2)
+                 	.ENDM
+                 
+                 	.MACRO __SUBWRR
+                 	SUB  R@0,R@2
+                 	SBC  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __ANDWRN
+                 	ANDI R@0,LOW(@2)
+                 	ANDI R@1,HIGH(@2)
+                 	.ENDM
+                 
+                 	.MACRO __ANDWRR
+                 	AND  R@0,R@2
+                 	AND  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __ORWRN
+                 	ORI  R@0,LOW(@2)
+                 	ORI  R@1,HIGH(@2)
+                 	.ENDM
+                 
+                 	.MACRO __ORWRR
+                 	OR   R@0,R@2
+                 	OR   R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __EORWRR
+                 	EOR  R@0,R@2
+                 	EOR  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __GETWRS
+                 	LDD  R@0,Y+@2
+                 	LDD  R@1,Y+@2+1
+                 	.ENDM
+                 
+                 	.MACRO __PUTWSR
+                 	STD  Y+@2,R@0
+                 	STD  Y+@2+1,R@1
+                 	.ENDM
+                 
+                 	.MACRO __MOVEWRR
+                 	MOV  R@0,R@2
+                 	MOV  R@1,R@3
+                 	.ENDM
+                 
+                 	.MACRO __INWR
+                 	IN   R@0,@2
+                 	IN   R@1,@2+1
+                 	.ENDM
+                 
+                 	.MACRO __OUTWR
+                 	OUT  @2+1,R@1
+                 	OUT  @2,R@0
+                 	.ENDM
+                 
+                 	.MACRO __CALL1MN
+                 	LDS  R30,@0+@1
+                 	LDS  R31,@0+@1+1
+                 	ICALL
+                 	.ENDM
+                 
+                 	.MACRO __CALL1FN
+                 	LDI  R30,LOW(2*@0+@1)
+                 	LDI  R31,HIGH(2*@0+@1)
+                 	RCALL __GETW1PF
+                 	ICALL
+                 	.ENDM
+                 
+                 	.MACRO __CALL2EN
+                 	LDI  R26,LOW(@0+@1)
+                 	LDI  R27,HIGH(@0+@1)
+                 	RCALL __EEPROMRDW
+                 	ICALL
+                 	.ENDM
+                 
+                 	.MACRO __GETW1STACK
+                 	IN   R26,SPL
+                 	IN   R27,SPH
+                 	ADIW R26,@0+1
+                 	LD   R30,X+
+                 	LD   R31,X
+                 	.ENDM
+                 
+                 	.MACRO __NBST
+                 	BST  R@0,@1
+                 	IN   R30,SREG
+                 	LDI  R31,0x40
+                 	EOR  R30,R31
+                 	OUT  SREG,R30
+                 	.ENDM
+                 
+                 
+                 	.MACRO __PUTB1SN
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1SN
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1SN
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1SNS
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	ADIW R26,@1
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1SNS
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	ADIW R26,@1
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1SNS
+                 	LDD  R26,Y+@0
+                 	LDD  R27,Y+@0+1
+                 	ADIW R26,@1
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1PMN
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1PMN
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1PMN
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1PMNS
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	ADIW R26,@1
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1PMNS
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	ADIW R26,@1
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1PMNS
+                 	LDS  R26,@0
+                 	LDS  R27,@0+1
+                 	ADIW R26,@1
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1RN
+                 	MOVW R26,R@0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1RN
+                 	MOVW R26,R@0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1RN
+                 	MOVW R26,R@0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1RNS
+                 	MOVW R26,R@0
+                 	ADIW R26,@1
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1RNS
+                 	MOVW R26,R@0
+                 	ADIW R26,@1
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1RNS
+                 	MOVW R26,R@0
+                 	ADIW R26,@1
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1RON
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	SUBI R26,LOW(-@2)
+                 	SBCI R27,HIGH(-@2)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1RON
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	SUBI R26,LOW(-@2)
+                 	SBCI R27,HIGH(-@2)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1RON
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	SUBI R26,LOW(-@2)
+                 	SBCI R27,HIGH(-@2)
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1RONS
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	ADIW R26,@2
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1RONS
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	ADIW R26,@2
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1RONS
+                 	MOV  R26,R@0
+                 	MOV  R27,R@1
+                 	ADIW R26,@2
+                 	RCALL __PUTDP1
+                 	.ENDM
+                 
+                 
+                 	.MACRO __GETB1SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	LD   R30,Z
+                 	.ENDM
+                 
+                 	.MACRO __GETB1HSX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	LD   R31,Z
+                 	.ENDM
+                 
+                 	.MACRO __GETW1SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	LD   R0,Z+
+                 	LD   R31,Z
+                 	MOV  R30,R0
+                 	.ENDM
+                 
+                 	.MACRO __GETD1SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	LD   R0,Z+
+                 	LD   R1,Z+
+                 	LD   R22,Z+
+                 	LD   R23,Z
+                 	MOVW R30,R0
+                 	.ENDM
+                 
+                 	.MACRO __GETB2SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R26,X
+                 	.ENDM
+                 
+                 	.MACRO __GETW2SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R0,X+
+                 	LD   R27,X
+                 	MOV  R26,R0
+                 	.ENDM
+                 
+                 	.MACRO __GETD2SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R0,X+
+                 	LD   R1,X+
+                 	LD   R24,X+
+                 	LD   R25,X
+                 	MOVW R26,R0
+                 	.ENDM
+                 
+                 	.MACRO __GETBRSX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@1)
+                 	SBCI R31,HIGH(-@1)
+                 	LD   R@0,Z
+                 	.ENDM
+                 
+                 	.MACRO __GETWRSX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@2)
+                 	SBCI R31,HIGH(-@2)
+                 	LD   R@0,Z+
+                 	LD   R@1,Z
+                 	.ENDM
+                 
+                 	.MACRO __LSLW8SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	LD   R31,Z
+                 	CLR  R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1SX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	ST   X+,R30
+                 	ST   X+,R31
+                 	ST   X+,R22
+                 	ST   X,R23
+                 	.ENDM
+                 
+                 	.MACRO __CLRW1SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	CLR  R0
+                 	ST   Z+,R0
+                 	ST   Z,R0
+                 	.ENDM
+                 
+                 	.MACRO __CLRD1SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	CLR  R0
+                 	ST   Z+,R0
+                 	ST   Z+,R0
+                 	ST   Z+,R0
+                 	ST   Z,R0
+                 	.ENDM
+                 
+                 	.MACRO __PUTB2SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	ST   Z,R26
+                 	.ENDM
+                 
+                 	.MACRO __PUTW2SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	ST   Z+,R26
+                 	ST   Z,R27
+                 	.ENDM
+                 
+                 	.MACRO __PUTD2SX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	ST   Z+,R26
+                 	ST   Z+,R27
+                 	ST   Z+,R24
+                 	ST   Z,R25
+                 	.ENDM
+                 
+                 	.MACRO __PUTBSRX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@0)
+                 	SBCI R31,HIGH(-@0)
+                 	ST   Z,R@1
+                 	.ENDM
+                 
+                 	.MACRO __PUTWSRX
+                 	MOVW R30,R28
+                 	SUBI R30,LOW(-@2)
+                 	SBCI R31,HIGH(-@2)
+                 	ST   Z+,R@0
+                 	ST   Z,R@1
+                 	.ENDM
+                 
+                 	.MACRO __PUTB1SNX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R0,X+
+                 	LD   R27,X
+                 	MOV  R26,R0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X,R30
+                 	.ENDM
+                 
+                 	.MACRO __PUTW1SNX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R0,X+
+                 	LD   R27,X
+                 	MOV  R26,R0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X+,R30
+                 	ST   X,R31
+                 	.ENDM
+                 
+                 	.MACRO __PUTD1SNX
+                 	MOVW R26,R28
+                 	SUBI R26,LOW(-@0)
+                 	SBCI R27,HIGH(-@0)
+                 	LD   R0,X+
+                 	LD   R27,X
+                 	MOV  R26,R0
+                 	SUBI R26,LOW(-@1)
+                 	SBCI R27,HIGH(-@1)
+                 	ST   X+,R30
+                 	ST   X+,R31
+                 	ST   X+,R22
+                 	ST   X,R23
+                 	.ENDM
+                 
+                 	.MACRO __MULBRR
+                 	MULS R@0,R@1
+                 	MOV  R30,R0
+                 	.ENDM
+                 
+                 	.MACRO __MULBRRU
+                 	MUL  R@0,R@1
+                 	MOV  R30,R0
+                 	.ENDM
+                 
+                 	.CSEG
+                 	.ORG 0
+                 
+                 	.INCLUDE "prog_mega8_1.vec"
+                 
+                 ;INTERRUPT VECTORS
+000000 c053      	RJMP __RESET
+000001 cffe      	RJMP 0x00
+000002 cffd      	RJMP 0x00
+000003 cffc      	RJMP 0x00
+000004 c24a      	RJMP _timer2_ovf_isr
+000005 cffa      	RJMP 0x00
+000006 cff9      	RJMP 0x00
+000007 cff8      	RJMP 0x00
+000008 c21c      	RJMP _timer1_ovf_isr
+000009 c20d      	RJMP _timer0_ovf_isr
+00000a cff5      	RJMP 0x00
+00000b c077      	RJMP _usart_rx_isr
+00000c cff3      	RJMP 0x00
+00000d cff2      	RJMP 0x00
+00000e cff1      	RJMP 0x00
+00000f cff0      	RJMP 0x00
+000010 cfef      	RJMP 0x00
+000011 c1b5      	RJMP _TWI_ISR
+000012 cfed      	RJMP 0x00
+                 
+                 	.INCLUDE "prog_mega8_1.inc"
+                 
+                 	.DEF _CountUART=R4
+                 	.DEF _CountUART_1=R5
+                 	.DEF _Relay_Pack_TWI_UART=R6
+                 	.DEF _Relay_Pack_UART_TWI=R7
+                 	.DEF _Count_For_Timer2=R8
+                 	.DEF _Packet_Lost=R9
+                 	.DEF _lAddr=R10
+                 	.DEF _TWI_slaveAddress=R11
+                 _3:
+prog_mega8_1.inc(11): warning: .cseg .db misalignment - padding zero byte
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+000013 0001      	.DB  0x1
+                 _43:
+prog_mega8_1.inc(13): warning: .cseg .db misalignment - padding zero byte
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+000014 00f8      	.DB  0xF8
+                 	.DEF _TWI_bufPtr_SE=R12
+                 _device_name:
+000015 614d
+000016 6e69
+000017 5020
+000018 6f72      	.DB  0x4D,0x61,0x69,0x6E,0x20,0x50,0x72,0x6F
+000019 7267
+00001a 6d61
+00001b 202e
+00001c 654d      	.DB  0x67,0x72,0x61,0x6D,0x2E,0x20,0x4D,0x65
+00001d 6167
+00001e 3820
+00001f 204c
+prog_mega8_1.inc(18): warning: .cseg .db misalignment - padding zero byte
+prog_mega8_1.asm(938): 'prog_mega8_1.inc' included form here
+000020 0000      	.DB  0x67,0x61,0x20,0x38,0x4C,0x20,0x0
+000021 0000      	.DW  0x0
+000022 0000      	.DW  0x0
+000023 0000      	.DW  0x0
+000024 0000      	.DW  0x0
+                 _my_version_high:
+000025 0001      	.DB  0x1,0x0
+                 _my_version_low:
+000026 0002      	.DB  0x2,0x0
+                 __PT_GETSTATE_:
+000027 0243
+000028 4300
+000029 6e6f
+00002a 656e      	.DB  0x43,0x2,0x0,0x43,0x6F,0x6E,0x6E,0x65
+00002b 7463
+00002c 6465
+00002d 4420
+00002e 7665      	.DB  0x63,0x74,0x65,0x64,0x20,0x44,0x65,0x76
+00002f 002e
+000030 5264
+000031 6c65
+000032 7961      	.DB  0x2E,0x0,0x64,0x52,0x65,0x6C,0x61,0x79
+000033 5754
+000034 2d49
+000035 553e
+000036 5241      	.DB  0x54,0x57,0x49,0x2D,0x3E,0x55,0x41,0x52
+000037 0054
+000038 5264
+000039 6c65
+00003a 7961      	.DB  0x54,0x0,0x64,0x52,0x65,0x6C,0x61,0x79
+00003b 4155
+00003c 5452
+00003d 3e2d
+00003e 5754      	.DB  0x55,0x41,0x52,0x54,0x2D,0x3E,0x54,0x57
+00003f 0049
+000040 5064
+000041 6361
+000042 656b      	.DB  0x49,0x0,0x64,0x50,0x61,0x63,0x6B,0x65
+000043 2074
+000044 4f4c
+000045 5453
+000046 2020      	.DB  0x74,0x20,0x4C,0x4F,0x53,0x54,0x20,0x20
+000047 0020
+000048 ff64      	.DB  0x20,0x0,0x64,0xFF
+                 
+                 ;REGISTER BIT VARIABLES INITIALIZATION
+                 __REG_BIT_VARS:
+000049 0001      	.DW  0x0001
+                 
+                 __GLOBAL_INI_TBL:
+00004a 0002      	.DW  0x02
+00004b 0002      	.DW  0x02
+00004c 0092      	.DW  __REG_BIT_VARS*2
+                 
+00004d 0001      	.DW  0x01
+00004e 000b      	.DW  0x0B
+00004f 0026      	.DW  _3*2
+                 
+000050 0001      	.DW  0x01
+000051 041e      	.DW  _TWI_state_G3
+000052 0028      	.DW  _43*2
+                 
+000053 0000      	.DW  0
+                 _0x90:
+                 
+                 __RESET:
+000054 94f8      	CLI
+000055 27ee      	CLR  R30
+000056 bbec      	OUT  EECR,R30
+                 
+                 ;INTERRUPT VECTORS ARE PLACED
+                 ;AT THE START OF FLASH
+000057 e0f1      	LDI  R31,1
+000058 bffb      	OUT  GICR,R31
+000059 bfeb      	OUT  GICR,R30
+00005a bfe5      	OUT  MCUCR,R30
+                 
+                 ;DISABLE WATCHDOG
+00005b e1f8      	LDI  R31,0x18
+00005c bdf1      	OUT  WDTCR,R31
+00005d bde1      	OUT  WDTCR,R30
+                 
+                 ;CLEAR R2-R14
+00005e e08d      	LDI  R24,13
+00005f e0a2      	LDI  R26,2
+000060 27bb      	CLR  R27
+                 __CLEAR_REG:
+000061 93ed      	ST   X+,R30
+000062 958a      	DEC  R24
+000063 f7e9      	BRNE __CLEAR_REG
+                 
+                 ;CLEAR SRAM
+000064 e080      	LDI  R24,LOW(0x400)
+000065 e094      	LDI  R25,HIGH(0x400)
+000066 e6a0      	LDI  R26,0x60
+                 __CLEAR_SRAM:
+000067 93ed      	ST   X+,R30
+000068 9701      	SBIW R24,1
+000069 f7e9      	BRNE __CLEAR_SRAM
+                 
+                 ;GLOBAL VARIABLES INITIALIZATION
+00006a e9e4      	LDI  R30,LOW(__GLOBAL_INI_TBL*2)
+00006b e0f0      	LDI  R31,HIGH(__GLOBAL_INI_TBL*2)
+                 __GLOBAL_INI_NEXT:
+00006c 9185      	LPM  R24,Z+
+00006d 9195      	LPM  R25,Z+
+00006e 9700      	SBIW R24,0
+00006f f061      	BREQ __GLOBAL_INI_END
+000070 91a5      	LPM  R26,Z+
+000071 91b5      	LPM  R27,Z+
+000072 9005      	LPM  R0,Z+
+000073 9015      	LPM  R1,Z+
+000074 01bf      	MOVW R22,R30
+000075 01f0      	MOVW R30,R0
+                 __GLOBAL_INI_LOOP:
+000076 9005      	LPM  R0,Z+
+000077 920d      	ST   X+,R0
+000078 9701      	SBIW R24,1
+000079 f7e1      	BRNE __GLOBAL_INI_LOOP
+00007a 01fb      	MOVW R30,R22
+00007b cff0      	RJMP __GLOBAL_INI_NEXT
+                 __GLOBAL_INI_END:
+                 
+                 ;STACK POINTER INITIALIZATION
+00007c e5ef      	LDI  R30,LOW(0x45F)
+00007d bfed      	OUT  SPL,R30
+00007e e0e4      	LDI  R30,HIGH(0x45F)
+00007f bfee      	OUT  SPH,R30
+                 
+                 ;DATA STACK POINTER INITIALIZATION
+000080 e6c0      	LDI  R28,LOW(0x160)
+000081 e0d1      	LDI  R29,HIGH(0x160)
+                 
+000082 c01c      	RJMP _main
+                 
+                 	.ESEG
+                 	.ORG 0
+                 
+                 	.DSEG
+                 	.ORG 0x160
+                 ;       1 /*****************************************************
+                 ;       2 This program was produced by the
+                 ;       3 CodeWizardAVR V1.24.5 Standard
+                 ;       4 Automatic Program Generator
+                 ;       5 © Copyright 1998-2005 Pavel Haiduc, HP InfoTech s.r.l.
+                 ;       6 http://www.hpinfotech.com
+                 ;       7 e-mail:office@hpinfotech.com
+                 ;       8 
+                 ;       9 Project : 
+                 ;      10 Version : 
+                 ;      11 Date    : 01.03.2006
+                 ;      12 Author  : TeleSys Embedded                
+                 ;      13 Company : FastmanSoft Inc.                
+                 ;      14 Comments: 
+                 ;      15 
+                 ;      16 
+                 ;      17 Chip type           : ATmega8
+                 ;      18 Program type        : Application
+                 ;      19 Clock frequency     : 8,000000 MHz
+                 ;      20 Memory model        : Small
+                 ;      21 External SRAM size  : 0
+                 ;      22 Data Stack size     : 256
+                 ;      23 *****************************************************/
+                 ;      24 
+                 ;      25 // Standard Input/Output functions
+                 ;      26 #include <stdio.h>
+                 ;      27 #include <delay.h>
+                 ;      28 #include <string.h>
+                 ;      29   
+                 ;      30 #include "CDdef.h"  				// мой описатель
+                 ;      31 /*****************************************************************************
+                 ;      32 *
+                 ;      33 * Atmel Corporation
+                 ;      34 *
+                 ;      35 * File              : TWI_Slave.h
+                 ;      36 * Compiler          : IAR EWAAVR 2.28a/3.10c
+                 ;      37 * Revision          : $Revision: 1.6 $
+                 ;      38 * Date              : $Date: Monday, May 24, 2004 09:32:18 UTC $
+                 ;      39 * Updated by        : $Author: ltwa $
+                 ;      40 *
+                 ;      41 * Support mail      : avr@atmel.com
+                 ;      42 *
+                 ;      43 * Supported devices : All devices with a TWI module can be used.
+                 ;      44 *                     The example is written for the ATmega16
+                 ;      45 *
+                 ;      46 * AppNote           : AVR311 - TWI Slave Implementation
+                 ;      47 *
+                 ;      48 * Description       : Header file for TWI_slave.c
+                 ;      49 *                     Include this file in the application.
+                 ;      50 *
+                 ;      51 ****************************************************************************/
+                 ;      52 #include <mega8.h> 
+                 ;      53 
+                 ;      54 /****************************************************************************
+                 ;      55   TWI Status/Control register definitions
+                 ;      56 ****************************************************************************/
+                 ;      57 
+                 ;      58 #define TWI_BUFFER_SIZE 250      // Reserves memory for the drivers transceiver buffer. 
+                 ;      59                                // Set this to the largest message size that will be sent including address byte.
+                 ;      60 
+                 ;      61 /****************************************************************************
+                 ;      62   Global definitions
+                 ;      63 ****************************************************************************/
+                 ;      64 /****************************************************************************
+                 ;      65   Global definitions
+                 ;      66 ****************************************************************************/
+                 ;      67 	typedef  struct
+                 ;      68     {
+                 ;      69         unsigned char lastTransOK:1;      
+                 ;      70         unsigned char RxDataInBuf:1;
+                 ;      71         unsigned char genAddressCall:1;                       // TRUE = General call, FALSE = TWI Address;
+                 ;      72         unsigned char unusedBits:5;
+                 ;      73     } SB;
+                 ;      74   
+                 ;      75   	typedef union 				                       // Status byte holding flags.
+                 ;      76 	{
+                 ;      77     	unsigned char all;
+                 ;      78     	SB bits;
+                 ;      79 	}  TWISR;
+                 ;      80 
+                 ;      81 extern  TWISR  TWI_statusReg;        
+                 ;      82 
+                 ;      83 
+                 ;      84 // Для совместимости
+                 ;      85 #define  __no_operation() #asm("nop")
+                 ;      86 #define  __enable_interrupt() #asm("sei")
+                 ;      87 #define  __disable_interrupt() #asm("cli")
+                 ;      88 
+                 ;      89 
+                 ;      90 /****************************************************************************
+                 ;      91   Function definitions
+                 ;      92 ****************************************************************************/
+                 ;      93 void TWI_Slave_Initialise( unsigned char );
+                 ;      94 unsigned char TWI_Transceiver_Busy( void );
+                 ;      95 unsigned char TWI_Get_State_Info( void );
+                 ;      96 void TWI_Start_Transceiver_With_Data( unsigned char * , unsigned char );
+                 ;      97 void TWI_Start_Transceiver( void );
+                 ;      98 unsigned char TWI_Get_Data_From_Transceiver( unsigned char *, unsigned char );    
+                 ;      99 
+                 ;     100 void run_TWI_slave ( void );
+                 ;     101 
+                 ;     102 
+                 ;     103 /****************************************************************************
+                 ;     104   Bit and byte definitions
+                 ;     105 ****************************************************************************/
+                 ;     106 #define TWI_READ_BIT  0   // Bit position for R/W bit in "address byte".
+                 ;     107 #define TWI_ADR_BITS  1   // Bit position for LSB of the slave address bits in the init byte.
+                 ;     108 #define TWI_GEN_BIT   0   // Bit position for LSB of the general call bit in the init byte.
+                 ;     109 
+                 ;     110 #define TRUE          1
+                 ;     111 #define FALSE         0
+                 ;     112 
+                 ;     113 /****************************************************************************
+                 ;     114   TWI State codes
+                 ;     115 ****************************************************************************/
+                 ;     116 // General TWI Master staus codes                      
+                 ;     117 #define TWI_START                  0x08  // START has been transmitted  
+                 ;     118 #define TWI_REP_START              0x10  // Repeated START has been transmitted
+                 ;     119 #define TWI_ARB_LOST               0x38  // Arbitration lost
+                 ;     120 
+                 ;     121 // TWI Master Transmitter staus codes                      
+                 ;     122 #define TWI_MTX_ADR_ACK            0x18  // SLA+W has been tramsmitted and ACK received
+                 ;     123 #define TWI_MTX_ADR_NACK           0x20  // SLA+W has been tramsmitted and NACK received 
+                 ;     124 #define TWI_MTX_DATA_ACK           0x28  // Data byte has been tramsmitted and ACK received
+                 ;     125 #define TWI_MTX_DATA_NACK          0x30  // Data byte has been tramsmitted and NACK received 
+                 ;     126 
+                 ;     127 // TWI Master Receiver staus codes  
+                 ;     128 #define TWI_MRX_ADR_ACK            0x40  // SLA+R has been tramsmitted and ACK received
+                 ;     129 #define TWI_MRX_ADR_NACK           0x48  // SLA+R has been tramsmitted and NACK received
+                 ;     130 #define TWI_MRX_DATA_ACK           0x50  // Data byte has been received and ACK tramsmitted
+                 ;     131 #define TWI_MRX_DATA_NACK          0x58  // Data byte has been received and NACK tramsmitted
+                 ;     132 
+                 ;     133 // TWI Slave Transmitter staus codes
+                 ;     134 #define TWI_STX_ADR_ACK            0xA8  // Own SLA+R has been received; ACK has been returned
+                 ;     135 #define TWI_STX_ADR_ACK_M_ARB_LOST 0xB0  // Arbitration lost in SLA+R/W as Master; own SLA+R has been received; ACK has been returned
+                 ;     136 #define TWI_STX_DATA_ACK           0xB8  // Data byte in TWDR has been transmitted; ACK has been received
+                 ;     137 #define TWI_STX_DATA_NACK          0xC0  // Data byte in TWDR has been transmitted; NOT ACK has been received
+                 ;     138 #define TWI_STX_DATA_ACK_LAST_BYTE 0xC8  // Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
+                 ;     139 
+                 ;     140 // TWI Slave Receiver staus codes
+                 ;     141 #define TWI_SRX_ADR_ACK            0x60  // Own SLA+W has been received ACK has been returned
+                 ;     142 #define TWI_SRX_ADR_ACK_M_ARB_LOST 0x68  // Arbitration lost in SLA+R/W as Master; own SLA+W has been received; ACK has been returned
+                 ;     143 #define TWI_SRX_GEN_ACK            0x70  // General call address has been received; ACK has been returned
+                 ;     144 #define TWI_SRX_GEN_ACK_M_ARB_LOST 0x78  // Arbitration lost in SLA+R/W as Master; General call address has been received; ACK has been returned
+                 ;     145 #define TWI_SRX_ADR_DATA_ACK       0x80  // Previously addressed with own SLA+W; data has been received; ACK has been returned
+                 ;     146 #define TWI_SRX_ADR_DATA_NACK      0x88  // Previously addressed with own SLA+W; data has been received; NOT ACK has been returned
+                 ;     147 #define TWI_SRX_GEN_DATA_ACK       0x90  // Previously addressed with general call; data has been received; ACK has been returned
+                 ;     148 #define TWI_SRX_GEN_DATA_NACK      0x98  // Previously addressed with general call; data has been received; NOT ACK has been returned
+                 ;     149 #define TWI_SRX_STOP_RESTART       0xA0  // A STOP condition or repeated START condition has been received while still addressed as Slave
+                 ;     150 
+                 ;     151 // TWI Miscellaneous status codes
+                 ;     152 #define TWI_NO_STATE               0xF8  // No relevant state information available; TWINT = “0”
+                 ;     153 #define TWI_BUS_ERROR              0x00  // Bus error due to an illegal START or STOP condition
+                 ;     154 
+                 ;     155 // Биты TWCR
+                 ;     156 #define TWINT 7             //Флаг прерывания выполнения задачи
+                 ;     157 #define TWEA  6             //Генерить ли бит ответа на вызов
+                 ;     158 #define TWSTA 5             //Генерить СТАРТ
+                 ;     159 #define TWSTO 4             //Генерить СТОП
+                 ;     160 #define TWWC  3             //
+                 ;     161 #define TWEN  2             //Разрешаем работу I2C
+                 ;     162 #define TWIE  0             //Прерывание
+                 ;     163 
+                 ;     164 
+                 ;     165 
+                 ;     166 unsigned char rxBufferTWI	[TWI_BUFFER_SIZE];				// приемный буфер  TWI
+                 _rxBufferTWI:
+000160           	.BYTE 0xFA
+                 ;     167 unsigned char txBufferTWI	[(TWI_BUFFER_SIZE/2)-25];						// передающий буфер TWI
+                 _txBufferTWI:
+00025a           	.BYTE 0x64
+                 ;     168 unsigned char rxBufferUART	[(TWI_BUFFER_SIZE/2)-25];					// накапливающий приемный буфер UART
+                 _rxBufferUART:
+0002be           	.BYTE 0x64
+                 ;     169 
+                 ;     170 unsigned char CountUART = 0, CountUART_1 = 0, Relay_Pack_TWI_UART,  Relay_Pack_UART_TWI;
+                 ;     171 unsigned char Count_For_Timer2 , Packet_Lost ;
+                 ;     172  
+                 ;     173 
+                 ;     174 // Адреса устройства
+                 ;     175 unsigned char lAddr	 	=	 	0x0;				//Логический адрес (адр. подключенного устройства)
+                 ;     176 
+                 ;     177 // Все для работы с TWI
+                 ;     178 TWISR TWI_statusReg;   
+                 _TWI_statusReg:
+000322           	.BYTE 0x1
+                 ;     179 unsigned char 	TWI_slaveAddress = MY_TWI_ADDRESS;		// Own TWI slave address
+                 ;     180 
+                 ;     181 // Флаги состояния
+                 ;     182 bit		gate_UART_to_TWI_open	=		1;					// ретрансляция из UART в TWI
+                 ;     183 bit		rxPack								=		0;					// принят пакет																						
+                 ;     184 bit		TWI_TX_Packet_Present	=		0;					// есть данные на передачу
+                 ;     185 bit 		rxPackUART 						= 		0;					// принят пакет по UART
+                 ;     186 bit 		Device_Connected				=		0;					// есть связь с подчиненным
+                 ;     187 bit 		InternalPack 						= 		0;					// принят внутренний пакет
+                 ;     188 bit		to_Reboot							=		0;					// на перезагрузку в Загрузчик
+                 ;     189 bit		Responce_Time_Out			=		0;					// время ожидания ответного пакета истекло
+                 ;     190 //bit		lock_PORT						=		1;					// заблокировать COM порт
+                 ;     191 
+                 ;     192 // USART Receiver interrupt service routine
+                 ;     193 interrupt [USART_RXC] void usart_rx_isr(void)      
+                 ;     194 {     
+                 
+                 	.CSEG
+                 _usart_rx_isr:
+000083 93ea      	ST   -Y,R30
+000084 93fa      	ST   -Y,R31
+000085 b7ef      	IN   R30,SREG
+000086 93ea      	ST   -Y,R30
+                 ;     195 	unsigned char data ;
+                 ;     196 	data = UDR;              
+000087 930a      	ST   -Y,R16
+                 ;	data -> R16
+000088 b10c      	IN   R16,12
+                 ;     197 
+                 ;     198 	if ((UCSRA & (FRAMING_ERROR | PARITY_ERROR | DATA_OVERRUN))==0)
+000089 b1eb      	IN   R30,0xB
+00008a 71ec      	ANDI R30,LOW(0x1C)
+00008b f469      	BRNE _0x4
+                 ;     199 	{
+                 ;     200 		if (!(CountUART)) 		             		// Прием с начала
+00008c 2044      	TST  R4
+00008d f431      	BRNE _0x5
+                 ;     201 		{ 
+                 ;     202 			if (!rxPackUART)           				// предыдущий пакет передан?
+00008e fc23      	SBRC R2,3
+00008f c003      	RJMP _0x6
+                 ;     203 			{
+                 ;     204 				CountUART_1 = 0;
+000090 2455      	CLR  R5
+                 ;     205 				rxBufferUART [CountUART_1++] = data;
+000091 d348      	RCALL SUBOPT_0x0
+                 ;     206 				CountUART = data;
+000092 2e40      	MOV  R4,R16
+                 ;     207 			} 
+                 ;     208 		}
+                 _0x6:
+                 ;     209 		else
+000093 c005      	RJMP _0x7
+                 _0x5:
+                 ;     210 		{                                                  // продолжаем прием пакета
+                 ;     211 			rxBufferUART[CountUART_1++] = data;
+000094 d345      	RCALL SUBOPT_0x0
+                 ;     212 			if (!(--CountUART)) 					
+000095 944a      	DEC  R4
+000096 f411      	BRNE _0x8
+                 ;     213 					rxPackUART = 1;              // принят весь пакет
+000097 9468      	SET
+000098 f823      	BLD  R2,3
+                 ;     214     	} 
+                 _0x8:
+                 _0x7:
+                 ;     215 	}                
+                 ;     216 }
+                 _0x4:
+000099 9109      	LD   R16,Y+
+00009a 91e9      	LD   R30,Y+
+00009b bfef      	OUT  SREG,R30
+00009c 91f9      	LD   R31,Y+
+00009d 91e9      	LD   R30,Y+
+00009e 9518      	RETI
+                 ;     217 
+                 ;     218 void main(void)
+                 ;     219 {
+                 _main:
+                 ;     220 // Declare your local variables here
+                 ;     221 
+                 ;     222 	LedOff();
+00009f 9a93      	SBI  0x12,3
+                 ;     223 	Initialization_Device();  						// инициализация железа
+0000a0 d02d      	RCALL _Initialization_Device
+                 ;     224 
+                 ;     225 	// Global enable interrupts
+                 ;     226 	#asm("sei")
+0000a1 9478      	sei
+                 ;     227 
+                 ;     228 	// Start the TWI transceiver to enable reseption of the first command from the TWI Master.
+                 ;     229 	txBufferTWI[0] = 0;     					// данных на передачу нет
+0000a2 d33e      	RCALL SUBOPT_0x1
+                 ;     230 	TWI_Start_Transceiver();
+0000a3 d108      	RCALL _TWI_Start_Transceiver
+                 ;     231 
+                 ;     232 	LedOn();         
+0000a4 9893      	CBI  0x12,3
+                 ;     233 
+                 ;     234 	give_GETINFO();		// отправляем посылку запроса в порт
+0000a5 d175      	RCALL _give_GETINFO
+                 ;     235                                                      
+                 ;     236     port_state (FALSE);		//блокируем порт
+0000a6 d33e      	RCALL SUBOPT_0x2
+0000a7 d2b9      	RCALL _port_state
+                 ;     237 #ifdef aaa
+                 ;     238     port_state (TRUE);		//блокируем порт
+                 ;     239 #endif    
+                 ;     240 
+                 ;     241 
+                 ;     242     
+                 ;     243 	while (1)
+                 _0x9:
+                 ;     244     {     
+                 ;     245 
+                 ;     246 
+                 ;     247 		run_TWI_slave();
+0000a8 d0a2      	RCALL _run_TWI_slave
+                 ;     248 
+                 ;     249 		if ( rxPack )
+0000a9 fe21      	SBRS R2,1
+0000aa c003      	RJMP _0xC
+                 ;     250 		{
+                 ;     251 
+                 ;     252 		 	workINpack();				// принят пакет TWI 
+0000ab d2bf      	RCALL _workINpack
+                 ;     253 			rxPack = 0;					// пакет обработан
+0000ac 94e8      	CLT
+0000ad f821      	BLD  R2,1
+                 ;     254 		}
+                 ;     255 
+                 ;     256 
+                 ;     257 		// обрабатываем принятый пакетUART
+                 ;     258 		if ( rxPackUART )
+                 _0xC:
+0000ae fe23      	SBRS R2,3
+0000af c00c      	RJMP _0xD
+                 ;     259 		{
+                 ;     260 				// проверяем КС
+                 ;     261 				if (checkCRCrx ( &UART_RX_Len, from_UART ) )
+0000b0 d337      	RCALL SUBOPT_0x3
+0000b1 d33b      	RCALL SUBOPT_0x4
+0000b2 d33d      	RCALL SUBOPT_0x5
+0000b3 f031      	BREQ _0xE
+                 ;     262 				{
+                 ;     263 					TCNT1=0x0000;				// при правильном обмене не проверяем адрес подч. устройства
+0000b4 e0e0      	LDI  R30,LOW(0)
+0000b5 e0f0      	LDI  R31,HIGH(0)
+0000b6 bdfd      	OUT  0x2C+1,R31
+0000b7 bdec      	OUT  0x2C,R30
+                 ;     264 					LedOff ();						// пришел ответ
+0000b8 9a93      	SBI  0x12,3
+                 ;     265 
+                 ;     266 					workUARTpack();			// обрабатываем пакет
+0000b9 d2f5      	RCALL _workUARTpack
+                 ;     267 				}       
+                 ;     268 				
+                 ;     269 		rxPackUART = 0;						// пакет обработан 
+                 _0xE:
+0000ba 94e8      	CLT
+0000bb f823      	BLD  R2,3
+                 ;     270 		}
+                 ;     271 
+                 ;     272 		// Таймаут истек. Ошибка устройства
+                 ;     273 		if ( Responce_Time_Out ) 
+                 _0xD:
+0000bc fe27      	SBRS R2,7
+0000bd c005      	RJMP _0xF
+                 ;     274 		{
+                 ;     275 			Responce_OK (FALSE);							
+0000be d326      	RCALL SUBOPT_0x2
+0000bf d16f      	RCALL _Responce_OK
+                 ;     276 		 	Responce_Time_Out = 0;
+0000c0 94e8      	CLT
+0000c1 f827      	BLD  R2,7
+                 ;     277 			gate_UART_to_TWI_open = FALSE; 
+0000c2 f820      	BLD  R2,0
+                 ;     278 
+                 ;     279 		 }
+                 ;     280 		 
+                 ;     281 		//  на перезагрузку в загрузчик
+                 ;     282 		if ( to_Reboot )
+                 _0xF:
+0000c3 fe26      	SBRS R2,6
+0000c4 c007      	RJMP _0x10
+                 ;     283 		{             
+                 ;     284 			if ( ! TWI_TX_Packet_Present )			// ждем пока вычитается ответ 
+0000c5 fc22      	SBRC R2,2
+0000c6 c005      	RJMP _0x11
+                 ;     285 			{
+                 ;     286 				// На перезагрузку в монитор
+                 ;     287 				IVCREG = 1 << IVCE;
+0000c7 e0e1      	LDI  R30,LOW(1)
+0000c8 bfeb      	OUT  0x3B,R30
+                 ;     288 				IVCREG = 1 << IVSEL;
+0000c9 e0e2      	LDI  R30,LOW(2)
+0000ca bfeb      	OUT  0x3B,R30
+                 ;     289 				#asm("rjmp 0xC00");
+0000cb cb34      	rjmp 0xC00
+                 ;     290 			}
+                 ;     291 		}
+                 _0x11:
+                 ;     292      }
+                 _0x10:
+0000cc cfdb      	RJMP _0x9
+                 ;     293 }
+                 _0x12:
+0000cd cfff      	RJMP _0x12
+                 ;     294 #include <twi_slave.h >
+                 ;     295 /*****************************************************************************
+                 ;     296 *
+                 ;     297 * Atmel Corporation
+                 ;     298 *
+                 ;     299 * File              : TWI_Slave.h
+                 ;     300 * Compiler          : IAR EWAAVR 2.28a/3.10c
+                 ;     301 * Revision          : $Revision: 1.6 $
+                 ;     302 * Date              : $Date: Monday, May 24, 2004 09:32:18 UTC $
+                 ;     303 * Updated by        : $Author: ltwa $
+                 ;     304 *
+                 ;     305 * Support mail      : avr@atmel.com
+                 ;     306 *
+                 ;     307 * Supported devices : All devices with a TWI module can be used.
+                 ;     308 *                     The example is written for the ATmega16
+                 ;     309 *
+                 ;     310 * AppNote           : AVR311 - TWI Slave Implementation
+                 ;     311 *
+                 ;     312 * Description       : Header file for TWI_slave.c
+                 ;     313 *                     Include this file in the application.
+                 ;     314 *
+                 ;     315 ****************************************************************************/
+                 ;     316 #include <mega8.h> 
+                 ;     317 
+                 ;     318 /****************************************************************************
+                 ;     319   TWI Status/Control register definitions
+                 ;     320 ****************************************************************************/
+                 ;     321 
+                 ;     322 #define TWI_BUFFER_SIZE 250      // Reserves memory for the drivers transceiver buffer. 
+                 ;     323                                // Set this to the largest message size that will be sent including address byte.
+                 ;     324 
+                 ;     325 /****************************************************************************
+                 ;     326   Global definitions
+                 ;     327 ****************************************************************************/
+                 ;     328 /****************************************************************************
+                 ;     329   Global definitions
+                 ;     330 ****************************************************************************/
+                 ;     331 	typedef  struct
+                 ;     332     {
+                 ;     333         unsigned char lastTransOK:1;      
+                 ;     334         unsigned char RxDataInBuf:1;
+                 ;     335         unsigned char genAddressCall:1;                       // TRUE = General call, FALSE = TWI Address;
+                 ;     336         unsigned char unusedBits:5;
+                 ;     337     } SB;
+                 ;     338   
+                 ;     339   	typedef union 				                       // Status byte holding flags.
+                 ;     340 	{
+                 ;     341     	unsigned char all;
+                 ;     342     	SB bits;
+                 ;     343 	}  TWISR;
+                 ;     344 
+                 ;     345 extern  TWISR  TWI_statusReg;        
+                 ;     346 
+                 ;     347 
+                 ;     348 // Для совместимости
+                 ;     349 #define  __no_operation() #asm("nop")
+                 ;     350 #define  __enable_interrupt() #asm("sei")
+                 ;     351 #define  __disable_interrupt() #asm("cli")
+                 ;     352 
+                 ;     353 
+                 ;     354 /****************************************************************************
+                 ;     355   Function definitions
+                 ;     356 ****************************************************************************/
+                 ;     357 void TWI_Slave_Initialise( unsigned char );
+                 ;     358 unsigned char TWI_Transceiver_Busy( void );
+                 ;     359 unsigned char TWI_Get_State_Info( void );
+                 ;     360 void TWI_Start_Transceiver_With_Data( unsigned char * , unsigned char );
+                 ;     361 void TWI_Start_Transceiver( void );
+                 ;     362 unsigned char TWI_Get_Data_From_Transceiver( unsigned char *, unsigned char );    
+                 ;     363 
+                 ;     364 void run_TWI_slave ( void );
+                 ;     365 
+                 ;     366 
+                 ;     367 /****************************************************************************
+                 ;     368   Bit and byte definitions
+                 ;     369 ****************************************************************************/
+                 ;     370 #define TWI_READ_BIT  0   // Bit position for R/W bit in "address byte".
+                 ;     371 #define TWI_ADR_BITS  1   // Bit position for LSB of the slave address bits in the init byte.
+                 ;     372 #define TWI_GEN_BIT   0   // Bit position for LSB of the general call bit in the init byte.
+                 ;     373 
+                 ;     374 #define TRUE          1
+                 ;     375 #define FALSE         0
+                 ;     376 
+                 ;     377 /****************************************************************************
+                 ;     378   TWI State codes
+                 ;     379 ****************************************************************************/
+                 ;     380 // General TWI Master staus codes                      
+                 ;     381 #define TWI_START                  0x08  // START has been transmitted  
+                 ;     382 #define TWI_REP_START              0x10  // Repeated START has been transmitted
+                 ;     383 #define TWI_ARB_LOST               0x38  // Arbitration lost
+                 ;     384 
+                 ;     385 // TWI Master Transmitter staus codes                      
+                 ;     386 #define TWI_MTX_ADR_ACK            0x18  // SLA+W has been tramsmitted and ACK received
+                 ;     387 #define TWI_MTX_ADR_NACK           0x20  // SLA+W has been tramsmitted and NACK received 
+                 ;     388 #define TWI_MTX_DATA_ACK           0x28  // Data byte has been tramsmitted and ACK received
+                 ;     389 #define TWI_MTX_DATA_NACK          0x30  // Data byte has been tramsmitted and NACK received 
+                 ;     390 
+                 ;     391 // TWI Master Receiver staus codes  
+                 ;     392 #define TWI_MRX_ADR_ACK            0x40  // SLA+R has been tramsmitted and ACK received
+                 ;     393 #define TWI_MRX_ADR_NACK           0x48  // SLA+R has been tramsmitted and NACK received
+                 ;     394 #define TWI_MRX_DATA_ACK           0x50  // Data byte has been received and ACK tramsmitted
+                 ;     395 #define TWI_MRX_DATA_NACK          0x58  // Data byte has been received and NACK tramsmitted
+                 ;     396 
+                 ;     397 // TWI Slave Transmitter staus codes
+                 ;     398 #define TWI_STX_ADR_ACK            0xA8  // Own SLA+R has been received; ACK has been returned
+                 ;     399 #define TWI_STX_ADR_ACK_M_ARB_LOST 0xB0  // Arbitration lost in SLA+R/W as Master; own SLA+R has been received; ACK has been returned
+                 ;     400 #define TWI_STX_DATA_ACK           0xB8  // Data byte in TWDR has been transmitted; ACK has been received
+                 ;     401 #define TWI_STX_DATA_NACK          0xC0  // Data byte in TWDR has been transmitted; NOT ACK has been received
+                 ;     402 #define TWI_STX_DATA_ACK_LAST_BYTE 0xC8  // Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
+                 ;     403 
+                 ;     404 // TWI Slave Receiver staus codes
+                 ;     405 #define TWI_SRX_ADR_ACK            0x60  // Own SLA+W has been received ACK has been returned
+                 ;     406 #define TWI_SRX_ADR_ACK_M_ARB_LOST 0x68  // Arbitration lost in SLA+R/W as Master; own SLA+W has been received; ACK has been returned
+                 ;     407 #define TWI_SRX_GEN_ACK            0x70  // General call address has been received; ACK has been returned
+                 ;     408 #define TWI_SRX_GEN_ACK_M_ARB_LOST 0x78  // Arbitration lost in SLA+R/W as Master; General call address has been received; ACK has been returned
+                 ;     409 #define TWI_SRX_ADR_DATA_ACK       0x80  // Previously addressed with own SLA+W; data has been received; ACK has been returned
+                 ;     410 #define TWI_SRX_ADR_DATA_NACK      0x88  // Previously addressed with own SLA+W; data has been received; NOT ACK has been returned
+                 ;     411 #define TWI_SRX_GEN_DATA_ACK       0x90  // Previously addressed with general call; data has been received; ACK has been returned
+                 ;     412 #define TWI_SRX_GEN_DATA_NACK      0x98  // Previously addressed with general call; data has been received; NOT ACK has been returned
+                 ;     413 #define TWI_SRX_STOP_RESTART       0xA0  // A STOP condition or repeated START condition has been received while still addressed as Slave
+                 ;     414 
+                 ;     415 // TWI Miscellaneous status codes
+                 ;     416 #define TWI_NO_STATE               0xF8  // No relevant state information available; TWINT = “0”
+                 ;     417 #define TWI_BUS_ERROR              0x00  // Bus error due to an illegal START or STOP condition
+                 ;     418 
+                 ;     419 // Биты TWCR
+                 ;     420 #define TWINT 7             //Флаг прерывания выполнения задачи
+                 ;     421 #define TWEA  6             //Генерить ли бит ответа на вызов
+                 ;     422 #define TWSTA 5             //Генерить СТАРТ
+                 ;     423 #define TWSTO 4             //Генерить СТОП
+                 ;     424 #define TWWC  3             //
+                 ;     425 #define TWEN  2             //Разрешаем работу I2C
+                 ;     426 #define TWIE  0             //Прерывание
+                 ;     427 
+                 ;     428 
+                 ;     429 #include <Scrambling.h >
+                 ;     430 
+                 ;     431 //#define TWI_Buffer_TX				120			// Буфер на прием UART/ передача TWI    
+                 ;     432 
+                 ;     433 #define from_TWI		0x0						// порт TWI
+                 ;     434 #define from_UART	0x1						// порт UART 
+                 ;     435 #define START_Timer  1						// таймер 200мс
+                 ;     436 #define STOP_Timer    0   
+                 ;     437 
+                 ;     438  #define Start_Position_for_Reply	2		// стартовая позиция для ответного пакета
+                 ;     439 #define Long_TX_Packet_TWI  	txBufferTWI[Start_Position_for_Reply]  // длина передаваемого пакета
+                 ;     440 #define Command_TX_Packet_TWI 	txBufferTWI[Start_Position_for_Reply+1]   // тип передаваемого пакета (команда)
+                 ;     441 #define CRC_TX_Packet_TWI   			txBufferTWI[Start_Position_for_Reply+Long_TX_Packet_TWI]	// СRC передаваемого пакета 
+                 ;     442 
+                 ;     443 
+                 ;     444 #define TWI_RX_Command 	 	rxBufferTWI[0]  // команда TWI
+                 ;     445 #define Heading_RX_Packet  	rxBufferTWI[1]  // заголовок пакета
+                 ;     446 #define Long_RX_Packet_TWI  	rxBufferTWI[2]  // длина принятого пакета
+                 ;     447 #define Recived_Address 			rxBufferTWI[3]  // адрес в принятом пакете
+                 ;     448 #define Type_RX_Packet_TWI 	rxBufferTWI[4]  // тип принятого пакета 
+                 ;     449 #define PT_GETSTATE_page		rxBufferTWI[5]	// номер страницы в пакете GETSTATE	
+                 ;     450 #define CRC_RX_Packet_TWI   rxBufferTWI[ rxBufferTWI[2]+2]	// CRC принятого пакета
+                 ;     451 
+                 ;     452 // Типы пакетов, используемых в CD
+                 ;     453 
+                 ;     454 #define GetLogAddr					1		// дать логический адрес 
+                 ;     455 //#define pingPack						2		// нас пингуют на наличие информации на передачу
+                 ;     456 #define Responce_GEN_CALL	3		// ответ на GEN CALL   
+                 ;     457 #define Responce_GEN_CALL_internal	4	// ответы для внутр. скремблера
+                 ;     458 
+                 ;     459 #define Internal_Packet		0x00			// пакеты внутреннего пользования
+                 ;     460 #define External_Packet 	0x01			// пакеты ретранслируемые
+                 ;     461 #define Global_Packet		0xFF			// глобальный пакет
+                 ;     462 
+                 ;     463 	
+                 ;     464 // Команды, передаваемые по TWI
+                 ;     465 #define TWI_CMD_MASTER_WRITE 					0x10
+                 ;     466 #define TWI_CMD_MASTER_READ  						0x20      
+                 ;     467 #define TWI_CMD_MASTER_RECIVE_PACK_OK 	0x21
+                 ;     468 #define TWI_CMD_MASTER_REQUEST_CRC 		0x22       
+                 ;     469 
+                 ;     470 // Функции
+                 ;     471 unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg );
+                 ;     472 void run_TWI_slave ( void ); 
+                 ;     473 unsigned char calc_CRC (unsigned char *Position_in_Packet); // Считаем CRC передаваемого пакета
+                 ;     474 void packPacket (unsigned char type);
+                 ;     475 
+                 ;     476 
+                 ;     477 
+                 ;     478 
+                 ;     479 
+                 ;     480 
+                 ;     481 // Инициализация железа. Определение адресов.
+                 ;     482 // 
+                 ;     483 void Initialization_Device (void)
+                 ;     484 {                                      
+                 _Initialization_Device:
+                 ;     485 		PORTC=0x07;
+0000ce e0e7      	LDI  R30,LOW(7)
+0000cf bbe5      	OUT  0x15,R30
+                 ;     486 
+                 ;     487 		#ifndef BOOT_PROGRAM
+                 ;     488 
+                 ;     489 		DDRD=0x1C;
+0000d0 e1ec      	LDI  R30,LOW(28)
+0000d1 bbe1      	OUT  0x11,R30
+                 ;     490 
+                 ;     491 		// External Interrupt(s) initialization
+                 ;     492 		// INT0: Off
+                 ;     493 		// INT1: Off
+                 ;     494 		MCUCR=0x00;
+0000d2 e0e0      	LDI  R30,LOW(0)
+0000d3 bfe5      	OUT  0x35,R30
+                 ;     495 
+                 ;     496 		// Analog Comparator initialization
+                 ;     497 		// Analog Comparator: Off
+                 ;     498 		// Analog Comparator Input Capture by Timer/Counter 1: Off
+                 ;     499 		ACSR=0x80;
+0000d4 e8e0      	LDI  R30,LOW(128)
+0000d5 b9e8      	OUT  0x8,R30
+                 ;     500 		SFIOR=0x00;
+0000d6 e0e0      	LDI  R30,LOW(0)
+0000d7 bfe0      	OUT  0x30,R30
+                 ;     501 
+                 ;     502 		// Инициализируем таймера 
+                 ;     503 		// Timer/Counter 0 initialization; Clock value: 7,813 kHz; 
+                 ;     504 		TCCR0=0x00;
+0000d8 d31a      	RCALL SUBOPT_0x6
+                 ;     505 		TCNT0=0x00;   
+0000d9 e0e0      	LDI  R30,LOW(0)
+0000da bfe2      	OUT  0x32,R30
+                 ;     506 
+                 ;     507 
+                 ;     508 		//Timer/Counter 2 initialization; Clock value: 7,813 kHz
+                 ;     509 		// Mode: Normal top=FFh;
+                 ;     510 		// Таймаут ожидания ответного пакета при GEN_CALL (200 ms)
+                 ;     511 		ASSR=0x00;
+0000db bde2      	OUT  0x22,R30
+                 ;     512 		TCCR2=0x00;
+0000dc bde5      	OUT  0x25,R30
+                 ;     513 		TCNT2=0x00;
+0000dd d318      	RCALL SUBOPT_0x7
+                 ;     514 		OCR2=0x00;     
+0000de e0e0      	LDI  R30,LOW(0)
+0000df bde3      	OUT  0x23,R30
+                 ;     515 		
+                 ;     516 		// Timer/Counter 1 initialization
+                 ;     517 		// Clock source: System Clock; Clock value: 7,813 kHz
+                 ;     518 		// Mode: Normal top=FFFFh; Таймаут опроса устройства RS-232
+                 ;     519 		TCCR1A=0x00;
+0000e0 bdef      	OUT  0x2F,R30
+                 ;     520 		TCCR1B=0x85;
+0000e1 e8e5      	LDI  R30,LOW(133)
+0000e2 bdee      	OUT  0x2E,R30
+                 ;     521 		TCNT1H=0x00;
+0000e3 e0e0      	LDI  R30,LOW(0)
+0000e4 bded      	OUT  0x2D,R30
+                 ;     522 		TCNT1L=0x00;
+0000e5 bdec      	OUT  0x2C,R30
+                 ;     523 		ICR1H=0x67;
+0000e6 e6e7      	LDI  R30,LOW(103)
+0000e7 bde7      	OUT  0x27,R30
+                 ;     524 		ICR1L=0x69;
+0000e8 e6e9      	LDI  R30,LOW(105)
+0000e9 bde6      	OUT  0x26,R30
+                 ;     525 		OCR1AH=0x00;
+0000ea e0e0      	LDI  R30,LOW(0)
+0000eb bdeb      	OUT  0x2B,R30
+                 ;     526 		OCR1AL=0x00;
+0000ec bdea      	OUT  0x2A,R30
+                 ;     527 		OCR1BH=0x00;
+0000ed bde9      	OUT  0x29,R30
+                 ;     528 		OCR1BL=0x00;
+0000ee bde8      	OUT  0x28,R30
+                 ;     529 
+                 ;     530 		// Timer(s)/Counter(s) Interrupt(s) initialization
+                 ;     531 		TIMSK=0x45;
+0000ef e4e5      	LDI  R30,LOW(69)
+0000f0 bfe9      	OUT  0x39,R30
+                 ;     532 
+                 ;     533 		#else
+                 ;     534 
+                 ;     535 		// Timer/Counter 1 initialization
+                 ;     536 		// Clock source: System Clock; Clock value: 7,813 kHz
+                 ;     537 		// Mode: Normal top=FFFFh; Таймаут опроса устройства RS-232
+                 ;     538 		TCCR1B=0x05;
+                 ;     539 		TCNT1=0xD2F6;		//примерно 2сек
+                 ;     540 
+                 ;     541 		// Вотчдог
+                 ;     542 //		WDTCR=0x1F;
+                 ;     543 //		WDTCR=0x0F;              
+                 ;     544 		#endif
+                 ;     545 
+                 ;     546 		
+                 ;     547 
+                 ;     548 		// USART initialization
+                 ;     549 		// Communication Parameters: 8 Data, 1 Stop, No Parity
+                 ;     550 		// USART Receiver: On
+                 ;     551 		// USART Transmitter: On
+                 ;     552 		// USART Mode: Asynchronous
+                 ;     553 		// USART Baud rate: 38400
+                 ;     554 //		UCSRA=0x00;
+                 ;     555 		UCSRB=0x98;
+0000f1 d307      	RCALL SUBOPT_0x8
+                 ;     556 		UCSRC=0x86;
+                 ;     557 //		UBRRH=0x00;
+                 ;     558 		UBRRL=0x0C;
+0000f2 b9e9      	OUT  0x9,R30
+                 ;     559 
+                 ;     560 		// Initialise TWI module for slave operation. Include address and/or enable General Call.
+                 ;     561 		// Читаем свой адрес
+                 ;     562 		TWI_slaveAddress += (PINC & 0b00000111);
+0000f3 b3e3      	IN   R30,0x13
+0000f4 70e7      	ANDI R30,LOW(0x7)
+0000f5 0ebe      	ADD  R11,R30
+                 ;     563 		TWI_Slave_Initialise( (TWI_slaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_GEN_BIT) ); 
+0000f6 2deb      	MOV  R30,R11
+0000f7 0fee      	LSL  R30
+0000f8 60e1      	ORI  R30,1
+0000f9 93ea      	ST   -Y,R30
+0000fa d090      	RCALL _TWI_Slave_Initialise
+                 ;     564  }                                  
+0000fb 9508      	RET
+                 ;     565 
+                 ;     566 
+                 ;     567 // Считаем CRC передаваемого пакета
+                 ;     568 unsigned char calc_CRC (unsigned char *Position_in_Packet)
+                 ;     569 {                    
+                 _calc_CRC:
+                 ;     570 	unsigned char CRC = 0, a;                                   
+                 ;     571 
+                 ;     572 	a = *Position_in_Packet ;
+0000fc d3e0      	RCALL __SAVELOCR2
+                 ;	*Position_in_Packet -> Y+2
+                 ;	CRC -> R16
+                 ;	a -> R17
+0000fd e000      	LDI  R16,0
+0000fe 81aa      	LDD  R26,Y+2
+0000ff 81bb      	LDD  R27,Y+2+1
+000100 911c      	LD   R17,X
+                 ;     573 	
+                 ;     574 	while(a--)
+                 _0x13:
+000101 2fe1      	MOV  R30,R17
+000102 5011      	SUBI R17,1
+000103 30e0      	CPI  R30,0
+000104 f039      	BREQ _0x15
+                 ;     575 	{
+                 ;     576 		CRC += *Position_in_Packet++;
+000105 81aa      	LDD  R26,Y+2
+000106 81bb      	LDD  R27,Y+2+1
+000107 91ed      	LD   R30,X+
+000108 83aa      	STD  Y+2,R26
+000109 83bb      	STD  Y+2+1,R27
+00010a 0f0e      	ADD  R16,R30
+                 ;     577 	}
+00010b cff5      	RJMP _0x13
+                 _0x15:
+                 ;     578 
+                 ;     579 	return CRC;
+00010c 2fe0      	MOV  R30,R16
+00010d d3d2      	RCALL __LOADLOCR2
+00010e 9624      	ADIW R28,4
+00010f 9508      	RET
+                 ;     580 }
+                 ;     581 
+                 ;     582 // Упаковка пакета во внешний...
+                 ;     583 void packPacket (unsigned char type)
+                 ;     584 {
+                 _packPacket:
+                 ;     585 		txBufferTWI[0] = txBufferTWI[Start_Position_for_Reply]+3;				// ДЛИНА
+000110 91e0 025c 	__GETB1MN _txBufferTWI,2
+000112 5fed      	SUBI R30,-LOW(3)
+000113 93e0 025a 	STS  _txBufferTWI,R30
+                 ;     586 		txBufferTWI[1] = type;																	// ТИП
+000115 81e8      	LD   R30,Y
+000116 93e0 025b 	__PUTB1MN _txBufferTWI,1
+                 ;     587 
+                 ;     588 		txBufferTWI[txBufferTWI[0]] = calc_CRC( &txBufferTWI[0] );           //CRC
+000118 91e0 025a 	LDS  R30,_txBufferTWI
+00011a d2e4      	RCALL SUBOPT_0x9
+00011b 93ff      	PUSH R31
+00011c 93ef      	PUSH R30
+00011d e5ea      	LDI  R30,LOW(_txBufferTWI)
+00011e e0f2      	LDI  R31,HIGH(_txBufferTWI)
+00011f d2e3      	RCALL SUBOPT_0xA
+000120 91af      	POP  R26
+000121 91bf      	POP  R27
+000122 d2e3      	RCALL SUBOPT_0xB
+                 ;     589 		TWI_TX_Packet_Present = 1;		// есть пакет на передачу
+000123 f822      	BLD  R2,2
+                 ;     590 }
+000124 c244      	RJMP _0x85
+                 ;     591 
+                 ;     592 
+                 ;     593 // считаем КС принятого пакета. Указатель - на начало пакета.
+                 ;     594 unsigned char checkCRCrx (unsigned char *Position_in_Packet, unsigned char Incoming_PORT)
+                 ;     595 {                    
+                 _checkCRCrx:
+                 ;     596 	unsigned char CRC=0 , a;		
+                 ;     597 	
+                 ;     598 	// Из TWI - начинаем считать с заголовка
+                 ;     599     if ( Incoming_PORT == from_TWI ) CRC = *Position_in_Packet ++;  // заголовок пакета
+000125 d3b7      	RCALL __SAVELOCR2
+                 ;	*Position_in_Packet -> Y+3
+                 ;	Incoming_PORT -> Y+2
+                 ;	CRC -> R16
+                 ;	a -> R17
+000126 e000      	LDI  R16,0
+000127 81ea      	LDD  R30,Y+2
+000128 30e0      	CPI  R30,0
+000129 f429      	BRNE _0x16
+00012a 81ab      	LDD  R26,Y+3
+00012b 81bc      	LDD  R27,Y+3+1
+00012c 910d      	LD   R16,X+
+00012d 83ab      	STD  Y+3,R26
+00012e 83bc      	STD  Y+3+1,R27
+                 ;     600     
+                 ;     601 	// Из UART - начинаем считать с длины
+                 ;     602 	a = *Position_in_Packet ;
+                 _0x16:
+00012f 81ab      	LDD  R26,Y+3
+000130 81bc      	LDD  R27,Y+3+1
+000131 911c      	LD   R17,X
+                 ;     603 	
+                 ;     604 	while(a--)
+                 _0x17:
+000132 2fe1      	MOV  R30,R17
+000133 5011      	SUBI R17,1
+000134 30e0      	CPI  R30,0
+000135 f039      	BREQ _0x19
+                 ;     605 	{
+                 ;     606 		CRC += *Position_in_Packet++;
+000136 81ab      	LDD  R26,Y+3
+000137 81bc      	LDD  R27,Y+3+1
+000138 91ed      	LD   R30,X+
+000139 83ab      	STD  Y+3,R26
+00013a 83bc      	STD  Y+3+1,R27
+00013b 0f0e      	ADD  R16,R30
+                 ;     607 	}
+00013c cff5      	RJMP _0x17
+                 _0x19:
+                 ;     608 
+                 ;     609 	if (CRC == *Position_in_Packet)	
+00013d 81ab      	LDD  R26,Y+3
+00013e 81bc      	LDD  R27,Y+3+1
+00013f 91ec      	LD   R30,X
+000140 17e0      	CP   R30,R16
+000141 f411      	BRNE _0x1A
+                 ;     610 			return TRUE; 										//Ok
+000142 e0e1      	LDI  R30,LOW(1)
+000143 c001      	RJMP _0x88
+                 ;     611 
+                 ;     612 	else	return FALSE;                                      // Error
+                 _0x1A:
+000144 e0e0      	LDI  R30,LOW(0)
+                 ;     613 }
+                 _0x88:
+000145 d39a      	RCALL __LOADLOCR2
+000146 9625      	ADIW R28,5
+000147 9508      	RET
+                 ;     614 
+                 ;     615 
+                 ;     616 unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg )
+                 ;     617 {
+                 _TWI_Act_On_Failure_In_Last_Transmission:
+                 ;     618                     // A failure has occurred, use TWIerrorMsg to determine the nature of the failure
+                 ;     619                     // and take appropriate actions.
+                 ;     620                     // Se header file for a list of possible failures messages.
+                 ;     621   
+                 ;     622                     // This very simple example puts the error code on PORTB and restarts the transceiver with
+                 ;     623                     // all the same data in the transmission buffers.
+                 ;     624 //  PORTB = TWIerrorMsg;
+                 ;     625   TWI_Start_Transceiver();
+000148 d063      	RCALL _TWI_Start_Transceiver
+                 ;     626                     
+                 ;     627   return TWIerrorMsg; 
+000149 81e8      	LD   R30,Y
+00014a c21e      	RJMP _0x85
+                 ;     628 }
+                 ;     629 
+                 ;     630 
+                 ;     631 void run_TWI_slave ( void )
+                 ;     632 {
+                 _run_TWI_slave:
+                 ;     633   // This example is made to work together with the AVR315 TWI Master application note. In adition to connecting the TWI
+                 ;     634   // pins, also connect PORTB to the LEDS. The code reads a message as a TWI slave and acts according to if it is a 
+                 ;     635   // general call, or an address call. If it is an address call, then the first byte is considered a command byte and
+                 ;     636   // it then responds differently according to the commands.
+                 ;     637 
+                 ;     638     // Check if the TWI Transceiver has completed an operation.
+                 ;     639     if ( ! TWI_Transceiver_Busy() )                              
+00014b d2bd      	RCALL SUBOPT_0xC
+00014c f5e9      	BRNE _0x1C
+                 ;     640     {
+                 ;     641     // Check if the last operation was successful
+                 ;     642       if ( TWI_statusReg.bits.lastTransOK )
+00014d d2be      	RCALL SUBOPT_0xD
+00014e f1c1      	BREQ _0x1D
+                 ;     643       {
+                 ;     644     // Check if the last operation was a reception
+                 ;     645         if ( TWI_statusReg.bits.RxDataInBuf )
+00014f 91e0 0322 	LDS  R30,_TWI_statusReg
+000151 70e2      	ANDI R30,LOW(0x2)
+000152 f181      	BREQ _0x1E
+                 ;     646         {
+                 ;     647           TWI_Get_Data_From_Transceiver(rxBufferTWI, 3);         
+000153 d2bc      	RCALL SUBOPT_0xE
+000154 d2c0      	RCALL SUBOPT_0xF
+000155 d05a      	RCALL _TWI_Get_Data_From_Transceiver
+                 ;     648     // Check if the last operation was a reception as General Call 
+                 ;     649 	// Глобальный адрес пока отдельно не анализирую
+                 ;     650           if ( TWI_statusReg.bits.genAddressCall )
+000156 91e0 0322 	LDS  R30,_TWI_statusReg
+000158 70e4      	ANDI R30,LOW(0x4)
+000159 f001      	BREQ _0x1F
+                 ;     651           {
+                 ;     652 /*				#ifndef BOOT_PROGRAM
+                 ;     653 					if ( Device_Connected )
+                 ;     654 							Wait_Responce ( START_Timer );  
+                 ;     655 				#endif	*/
+                 ;     656           }
+                 ;     657 
+                 ;     658 		  // Ends up here if the last operation was a reception as Slave Address Match                  
+                 ;     659 /*          else
+                 ;     660           {*/
+                 ;     661 			switch ( TWI_RX_Command )
+                 _0x1F:
+00015a 91e0 0160 	LDS  R30,_rxBufferTWI
+                 ;     662 			{
+                 ;     663 				case  TWI_CMD_MASTER_WRITE:
+00015c 31e0      	CPI  R30,LOW(0x10)
+00015d f481      	BRNE _0x23
+                 ;     664 						// дочитываем принятые данные	
+                 ;     665 						TWI_Get_Data_From_Transceiver(rxBufferTWI, Long_RX_Packet_TWI+3 );
+00015e d2b1      	RCALL SUBOPT_0xE
+00015f 91e0 0162 	__GETB1MN _rxBufferTWI,2
+000161 5fed      	SUBI R30,-LOW(3)
+000162 93ea      	ST   -Y,R30
+000163 d04c      	RCALL _TWI_Get_Data_From_Transceiver
+                 ;     666 						// проверяем КС  
+                 ;     667 						if ( checkCRCrx ( &Heading_RX_Packet , from_TWI ) )
+000164 e6e1
+000165 e0f1      	__POINTW1MN _rxBufferTWI,1
+000166 93fa      	ST   -Y,R31
+000167 93ea      	ST   -Y,R30
+000168 d27c      	RCALL SUBOPT_0x2
+000169 d286      	RCALL SUBOPT_0x5
+00016a f011      	BREQ _0x24
+                 ;     668 								rxPack = 1;	 
+00016b 9468      	SET
+00016c f821      	BLD  R2,1
+                 ;     669 #ifdef aaa
+                 ;     670     putchar (0xaa);
+                 ;     671 #endif    
+                 ;     672 						break;
+                 _0x24:
+00016d c015      	RJMP _0x22
+                 ;     673 
+                 ;     674 
+                 ;     675 				case  TWI_CMD_MASTER_READ:
+                 _0x23:
+00016e 32e0      	CPI  R30,LOW(0x20)
+00016f f419      	BRNE _0x25
+                 ;     676                          // новых пакетов нет
+                 ;     677 						if ( ! TWI_TX_Packet_Present)
+000170 fe22      	SBRS R2,2
+                 ;     678 						{
+                 ;     679 								txBufferTWI[0] = 0;
+000171 d26f      	RCALL SUBOPT_0x1
+                 ;     680 
+                 ;     681 						}
+                 ;     682 
+                 ;     683 #ifdef aaa
+                 ;     684     putchar (0xac);
+                 ;     685 	txBufferTWI[0] = 0;
+                 ;     686 #endif    
+                 ;     687 						TWI_Start_Transceiver_With_Data( txBufferTWI, txBufferTWI[0]+1 );           
+000172 c007      	RJMP _0x89
+                 ;     688 						break;
+                 ;     689 
+                 ;     690 				case  TWI_CMD_MASTER_RECIVE_PACK_OK:
+                 _0x25:
+000173 32e1      	CPI  R30,LOW(0x21)
+000174 f411      	BRNE _0x28
+                 ;     691 						TWI_TX_Packet_Present = 0;			// мастер принял пакет без ошибок
+000175 94e8      	CLT
+000176 f822      	BLD  R2,2
+                 ;     692 						txBufferTWI[0] = 0;     					// данных на передачу нет
+                 ;     693                         
+                 ;     694 						TWI_Start_Transceiver_With_Data( txBufferTWI, txBufferTWI[0]+1 );           
+                 ;     695 						break;
+                 ;     696 
+                 ;     697 
+                 ;     698 				default:	
+                 _0x28:
+                 ;     699 						txBufferTWI[0] = 0;     	// передаем пустой пакет
+                 _0x8A:
+000177 e0e0      	LDI  R30,LOW(0)
+000178 93e0 025a 	STS  _txBufferTWI,R30
+                 ;     700 
+                 ;     701 						TWI_Start_Transceiver_With_Data( txBufferTWI, txBufferTWI[0]+1 );           
+                 _0x89:
+00017a e5ea      	LDI  R30,LOW(_txBufferTWI)
+00017b e0f2      	LDI  R31,HIGH(_txBufferTWI)
+00017c 93fa      	ST   -Y,R31
+00017d 93ea      	ST   -Y,R30
+00017e 91e0 025a 	LDS  R30,_txBufferTWI
+000180 5fef      	SUBI R30,-LOW(1)
+000181 93ea      	ST   -Y,R30
+000182 d017      	RCALL _TWI_Start_Transceiver_With_Data
+                 ;     702 //			}
+                 ;     703           }
+                 _0x22:
+                 ;     704         }
+                 ;     705 
+                 ;     706     // Check if the TWI Transceiver has already been started.
+                 ;     707     // If not then restart it to prepare it for new receptions.             
+                 ;     708         if ( ! TWI_Transceiver_Busy() )
+                 _0x1E:
+000183 d285      	RCALL SUBOPT_0xC
+000184 f409      	BRNE _0x29
+                 ;     709         {
+                 ;     710           TWI_Start_Transceiver();
+000185 d026      	RCALL _TWI_Start_Transceiver
+                 ;     711         }      
+                 ;     712       }
+                 _0x29:
+                 ;     713     // Ends up here if the last operation completed unsuccessfully
+                 ;     714       else
+000186 c003      	RJMP _0x2A
+                 _0x1D:
+                 ;     715       {
+                 ;     716         TWI_Act_On_Failure_In_Last_Transmission( TWI_Get_State_Info() );
+000187 d00d      	RCALL _TWI_Get_State_Info
+000188 93ea      	ST   -Y,R30
+000189 dfbe      	RCALL _TWI_Act_On_Failure_In_Last_Transmission
+                 ;     717       }
+                 _0x2A:
+                 ;     718     }
+                 ;     719   }
+                 _0x1C:
+00018a 9508      	RET
+                 ;     720 /*****************************************************************************
+                 ;     721 *
+                 ;     722 * Atmel Corporation
+                 ;     723 *
+                 ;     724 * File              : TWI_Slave.c
+                 ;     725 * Compiler          : IAR EWAAVR 2.28a/3.10c
+                 ;     726 * Revision          : $Revision: 1.7 $
+                 ;     727 * Date              : $Date: Thursday, August 05, 2004 09:22:50 UTC $
+                 ;     728 * Updated by        : $Author: lholsen $
+                 ;     729 *
+                 ;     730 * Support mail      : avr@atmel.com
+                 ;     731 *
+                 ;     732 * Supported devices : All devices with a TWI module can be used.
+                 ;     733 *                     The example is written for the ATmega16
+                 ;     734 *
+                 ;     735 * AppNote           : AVR311 - TWI Slave Implementation
+                 ;     736 *
+                 ;     737 * Description       : This is sample driver to AVRs TWI module. 
+                 ;     738 *                     It is interupt driveren. All functionality is controlled through 
+                 ;     739 *                     passing information to and from functions. Se main.c for samples
+                 ;     740 *                     of how to use the driver.
+                 ;     741 *
+                 ;     742 ****************************************************************************/
+                 ;     743 #include "TWI_slave.h"
+                 ;     744  
+                 ;     745 static unsigned char TWI_buf[TWI_BUFFER_SIZE];     // Transceiver buffer. Set the size in the header file
+                 
+                 	.DSEG
+                 _TWI_buf_G3:
+000323           	.BYTE 0xFA
+                 ;     746 static unsigned char TWI_msgSize  = 0;             // Number of bytes to be transmitted.
+                 _TWI_msgSize_G3:
+00041d           	.BYTE 0x1
+                 ;     747 static unsigned char TWI_state    = TWI_NO_STATE;  // State byte. Default set to TWI_NO_STATE.
+                 _TWI_state_G3:
+00041e           	.BYTE 0x1
+                 ;     748 
+                 ;     749 //union TWISR TWI_statusReg = {0};           // TWI_statusReg is defined in TWI_Slave.h
+                 ;     750 
+                 ;     751 /****************************************************************************
+                 ;     752 Call this function to set up the TWI slave to its initial standby state.
+                 ;     753 Remember to enable interrupts from the main application after initializing the TWI.
+                 ;     754 Pass both the slave address and the requrements for triggering on a general call in the
+                 ;     755 same byte. Use e.g. this notation when calling this function:
+                 ;     756 TWI_Slave_Initialise( (TWI_slaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_GEN_BIT) );
+                 ;     757 The TWI module is configured to NACK on any requests. Use a TWI_Start_Transceiver function to 
+                 ;     758 start the TWI.
+                 ;     759 ****************************************************************************/
+                 ;     760 void TWI_Slave_Initialise( unsigned char TWI_ownAddress )
+                 ;     761 {
+                 
+                 	.CSEG
+                 _TWI_Slave_Initialise:
+                 ;     762   TWAR = TWI_ownAddress;                            // Set own TWI slave address. Accept TWI General Calls.
+00018b 81e8      	LD   R30,Y
+00018c b9e2      	OUT  0x2,R30
+                 ;     763 
+                 ;     764   TWDR = 0xFF;                                      // Default content = SDA released.
+00018d efef      	LDI  R30,LOW(255)
+00018e b9e3      	OUT  0x3,R30
+                 ;     765   TWCR = (1<<TWEN)|                                 // Enable TWI-interface and release TWI pins.
+                 ;     766          (0<<TWIE)|(0<<TWINT)|                      // Disable TWI Interupt.
+                 ;     767          (0<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Do not ACK on any requests, yet.
+                 ;     768          (0<<TWWC);                                 //
+00018f e0e4      	LDI  R30,LOW(4)
+000190 bfe6      	OUT  0x36,R30
+                 ;     769 }    
+000191 c1d7      	RJMP _0x85
+                 ;     770 
+                 ;     771 /****************************************************************************
+                 ;     772 Call this function to test if the TWI_ISR is busy transmitting.
+                 ;     773 ****************************************************************************/
+                 ;     774 unsigned char TWI_Transceiver_Busy( void )
+                 ;     775 {
+                 _TWI_Transceiver_Busy:
+                 ;     776   return ( TWCR & (1<<TWIE) );                  // IF TWI interrupt is enabled then the Transceiver is busy
+000192 b7e6      	IN   R30,0x36
+000193 70e1      	ANDI R30,LOW(0x1)
+000194 9508      	RET
+                 ;     777 }
+                 ;     778 
+                 ;     779 /****************************************************************************
+                 ;     780 Call this function to fetch the state information of the previous operation. The function will hold execution (loop)
+                 ;     781 until the TWI_ISR has completed with the previous operation. If there was an error, then the function 
+                 ;     782 will return the TWI State code. 
+                 ;     783 ****************************************************************************/
+                 ;     784 unsigned char TWI_Get_State_Info( void )
+                 ;     785 {
+                 _TWI_Get_State_Info:
+                 ;     786   while ( TWI_Transceiver_Busy() );             // Wait until TWI has completed the transmission.
+                 _0x2C:
+000195 d273      	RCALL SUBOPT_0xC
+000196 f7f1      	BRNE _0x2C
+                 ;     787   return ( TWI_state );                         // Return error state. 
+000197 91e0 041e 	LDS  R30,_TWI_state_G3
+000199 9508      	RET
+                 ;     788 }
+                 ;     789 
+                 ;     790 /****************************************************************************
+                 ;     791 Call this function to send a prepared message, or start the Transceiver for reception. Include
+                 ;     792 a pointer to the data to be sent if a SLA+W is received. The data will be copied to the TWI buffer. 
+                 ;     793 Also include how many bytes that should be sent. Note that unlike the similar Master function, the
+                 ;     794 Address byte is not included in the message buffers.
+                 ;     795 The function will hold execution (loop) until the TWI_ISR has completed with the previous operation,
+                 ;     796 then initialize the next operation and return.
+                 ;     797 ****************************************************************************/
+                 ;     798 void TWI_Start_Transceiver_With_Data( unsigned char *msg, unsigned char msgSize )
+                 ;     799 {
+                 _TWI_Start_Transceiver_With_Data:
+                 ;     800   unsigned char temp;
+                 ;     801 
+                 ;     802   while ( TWI_Transceiver_Busy() );             // Wait until TWI is ready for next transmission.
+00019a 930a      	ST   -Y,R16
+                 ;	*msg -> Y+2
+                 ;	msgSize -> Y+1
+                 ;	temp -> R16
+                 _0x2F:
+00019b d26d      	RCALL SUBOPT_0xC
+00019c f7f1      	BRNE _0x2F
+                 ;     803 
+                 ;     804   TWI_msgSize = msgSize;                        // Number of data to transmit.
+00019d 81e9      	LDD  R30,Y+1
+00019e 93e0 041d 	STS  _TWI_msgSize_G3,R30
+                 ;     805   for ( temp = 0; temp < msgSize; temp++ )      // Copy data that may be transmitted if the TWI Master requests data.
+0001a0 e000      	LDI  R16,LOW(0)
+                 _0x33:
+0001a1 d276      	RCALL SUBOPT_0x10
+0001a2 f438      	BRSH _0x34
+                 ;     806     TWI_buf[ temp ] = msg[ temp ];
+0001a3 d277      	RCALL SUBOPT_0x11
+0001a4 010f      	MOVW R0,R30
+0001a5 d27a      	RCALL SUBOPT_0x12
+0001a6 91ec      	LD   R30,X
+0001a7 d27f      	RCALL SUBOPT_0x13
+                 ;     807 
+                 ;     808   TWI_statusReg.all = 0;      
+0001a8 5f0f      	SUBI R16,-1
+0001a9 cff7      	RJMP _0x33
+                 _0x34:
+0001aa d27f      	RCALL SUBOPT_0x14
+                 ;     809   TWI_state         = TWI_NO_STATE ;
+                 ;     810   TWCR = (1<<TWEN)|                             // TWI Interface enabled.
+                 ;     811          (1<<TWIE)|(1<<TWINT)|                  // Enable TWI Interupt and clear the flag.
+                 ;     812          (1<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|       // Prepare to ACK next time the Slave is addressed.
+                 ;     813          (0<<TWWC);                             //
+                 ;     814 }
+0001ab c018      	RJMP _0x87
+                 ;     815 
+                 ;     816 /****************************************************************************
+                 ;     817 Call this function to start the Transceiver without specifing new transmission data. Usefull for restarting
+                 ;     818 a transmission, or just starting the transceiver for reception. The driver will reuse the data previously put
+                 ;     819 in the transceiver buffers. The function will hold execution (loop) until the TWI_ISR has completed with the 
+                 ;     820 previous operation, then initialize the next operation and return.
+                 ;     821 ****************************************************************************/
+                 ;     822 void TWI_Start_Transceiver( void )
+                 ;     823 {
+                 _TWI_Start_Transceiver:
+                 ;     824   while ( TWI_Transceiver_Busy() );             // Wait until TWI is ready for next transmission.
+                 _0x35:
+0001ac d25c      	RCALL SUBOPT_0xC
+0001ad f7f1      	BRNE _0x35
+                 ;     825   TWI_statusReg.all = 0;      
+0001ae d27b      	RCALL SUBOPT_0x14
+                 ;     826   TWI_state         = TWI_NO_STATE ;
+                 ;     827   TWCR = (1<<TWEN)|                             // TWI Interface enabled.
+                 ;     828          (1<<TWIE)|(1<<TWINT)|                  // Enable TWI Interupt and clear the flag.
+                 ;     829          (1<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|       // Prepare to ACK next time the Slave is addressed.
+                 ;     830          (0<<TWWC);                             //
+                 ;     831 }
+0001af 9508      	RET
+                 ;     832 /****************************************************************************
+                 ;     833 Call this function to read out the received data from the TWI transceiver buffer. I.e. first call
+                 ;     834 TWI_Start_Transceiver to get the TWI Transceiver to fetch data. Then Run this function to collect the
+                 ;     835 data when they have arrived. Include a pointer to where to place the data and the number of bytes
+                 ;     836 to fetch in the function call. The function will hold execution (loop) until the TWI_ISR has completed 
+                 ;     837 with the previous operation, before reading out the data and returning.
+                 ;     838 If there was an error in the previous transmission the function will return the TWI State code.
+                 ;     839 ****************************************************************************/
+                 ;     840 unsigned char TWI_Get_Data_From_Transceiver( unsigned char *msg, unsigned char msgSize )
+                 ;     841 {
+                 _TWI_Get_Data_From_Transceiver:
+                 ;     842   unsigned char i;
+                 ;     843 
+                 ;     844   while ( TWI_Transceiver_Busy() );             // Wait until TWI is ready for next transmission.
+0001b0 930a      	ST   -Y,R16
+                 ;	*msg -> Y+2
+                 ;	msgSize -> Y+1
+                 ;	i -> R16
+                 _0x38:
+0001b1 d257      	RCALL SUBOPT_0xC
+0001b2 f7f1      	BRNE _0x38
+                 ;     845 
+                 ;     846   if( TWI_statusReg.bits.lastTransOK )               // Last transmission competed successfully.              
+0001b3 d258      	RCALL SUBOPT_0xD
+0001b4 f071      	BREQ _0x3B
+                 ;     847   {                                             
+                 ;     848     for ( i=0; i<msgSize; i++ )                 // Copy data from Transceiver buffer.
+0001b5 e000      	LDI  R16,LOW(0)
+                 _0x3D:
+0001b6 d261      	RCALL SUBOPT_0x10
+0001b7 f430      	BRSH _0x3E
+                 ;     849     {
+                 ;     850       msg[ i ] = TWI_buf[ i ];
+0001b8 d267      	RCALL SUBOPT_0x12
+0001b9 d261      	RCALL SUBOPT_0x11
+0001ba 81e0      	LD   R30,Z
+0001bb 93ec      	ST   X,R30
+                 ;     851     }
+0001bc 5f0f      	SUBI R16,-1
+0001bd cff8      	RJMP _0x3D
+                 _0x3E:
+                 ;     852     TWI_statusReg.bits.RxDataInBuf = FALSE;          // Slave Receive data has been read from buffer.
+0001be 91e0 0322 	LDS  R30,_TWI_statusReg
+0001c0 7fed      	ANDI R30,0xFD
+0001c1 93e0 0322 	STS  _TWI_statusReg,R30
+                 ;     853   }
+                 ;     854   return( TWI_statusReg.bits.lastTransOK );                                   
+                 _0x3B:
+0001c3 d248      	RCALL SUBOPT_0xD
+                 _0x87:
+0001c4 8108      	LDD  R16,Y+0
+0001c5 9624      	ADIW R28,4
+0001c6 9508      	RET
+                 ;     855 }
+                 ;     856 
+                 ;     857 // ********** Interrupt Handlers ********** //
+                 ;     858 /****************************************************************************
+                 ;     859 This function is the Interrupt Service Routine (ISR), and called when the TWI interrupt is triggered;
+                 ;     860 that is whenever a TWI event has occurred. This function should not be called directly from the main
+                 ;     861 application.
+                 ;     862 ****************************************************************************/
+                 ;     863 // 2 Wire bus interrupt service routine
+                 ;     864 interrupt [TWI] void TWI_ISR(void)
+                 ;     865 {
+                 _TWI_ISR:
+0001c7 93aa      	ST   -Y,R26
+0001c8 93ba      	ST   -Y,R27
+0001c9 93ea      	ST   -Y,R30
+0001ca 93fa      	ST   -Y,R31
+0001cb b7ef      	IN   R30,SREG
+0001cc 93ea      	ST   -Y,R30
+                 ;     866   static unsigned char TWI_bufPtr;
+                 
+                 	.DSEG
+                 
+                 	.CSEG
+                 ;     867 
+                 ;     868 switch (TWSR)
+0001cd b1e1      	IN   R30,0x1
+                 ;     869   {
+                 ;     870     case TWI_STX_ADR_ACK:            // Own SLA+R has been received; ACK has been returned
+0001ce 3ae8      	CPI  R30,LOW(0xA8)
+0001cf f411      	BRNE _0x42
+                 ;     871 //    case TWI_STX_ADR_ACK_M_ARB_LOST: // Arbitration lost in SLA+R/W as Master; own SLA+R has been received; ACK has been returned
+                 ;     872       TWI_bufPtr   = 0;                                 // Set buffer pointer to first data location
+0001d0 24cc      	CLR  R12
+                 ;     873 #ifdef aaa
+                 ;     874 	PORTD.3=0; 
+                 ;     875 #endif    
+                 ;     876 
+                 ;     877     case TWI_STX_DATA_ACK:           // Data byte in TWDR has been transmitted; ACK has been received
+0001d1 c002      	RJMP _0x43
+                 _0x42:
+0001d2 3be8      	CPI  R30,LOW(0xB8)
+0001d3 f429      	BRNE _0x44
+                 _0x43:
+                 ;     878       TWDR = TWI_buf[TWI_bufPtr++];
+0001d4 d25e      	RCALL SUBOPT_0x15
+0001d5 81e0      	LD   R30,Z
+0001d6 b9e3      	OUT  0x3,R30
+                 ;     879       TWCR = (1<<TWEN)|                                 // TWI Interface enabled
+                 ;     880              (1<<TWIE)|(1<<TWINT)|                      // Enable TWI Interupt and clear the flag to send byte
+                 ;     881              (1<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // 
+                 ;     882              (0<<TWWC);                                 //  
+0001d7 ece5      	LDI  R30,LOW(197)
+0001d8 c036      	RJMP _0x8B
+                 ;     883       break;
+                 ;     884 
+                 ;     885     case TWI_STX_DATA_NACK:          // Data byte in TWDR has been transmitted; NACK has been received. 
+                 _0x44:
+0001d9 3ce0      	CPI  R30,LOW(0xC0)
+0001da f441      	BRNE _0x45
+                 ;     886                                      // I.e. this could be the end of the transmission.
+                 ;     887       if (TWI_bufPtr == TWI_msgSize) // Have we transceived all expected data?
+0001db 91e0 041d 	LDS  R30,_TWI_msgSize_G3
+0001dd 15ec      	CP   R30,R12
+0001de f411      	BRNE _0x46
+                 ;     888       {
+                 ;     889         TWI_statusReg.bits.lastTransOK = TRUE;               // Set status bits to completed successfully. 
+0001df d259      	RCALL SUBOPT_0x16
+                 ;     890       }else                          // Master has sent a NACK before all data where sent.
+0001e0 c001      	RJMP _0x47
+                 _0x46:
+                 ;     891       {
+                 ;     892         TWI_state = TWSR;                               // Store TWI State as errormessage.      
+0001e1 d25d      	RCALL SUBOPT_0x17
+                 ;     893       }        
+                 _0x47:
+                 ;     894                                                         // Put TWI Transceiver in passive mode.
+                 ;     895       TWCR = (1<<TWEN)|                                 // Enable TWI-interface and release TWI pins
+                 ;     896              (0<<TWIE)|(0<<TWINT)|                      // Disable Interupt
+                 ;     897              (0<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Do not acknowledge on any new requests.
+                 ;     898              (0<<TWWC);                                 //
+0001e2 c02b      	RJMP _0x8C
+                 ;     899       break;     
+                 ;     900 
+                 ;     901     case TWI_SRX_GEN_ACK:            // General call address has been received; ACK has been returned
+                 _0x45:
+0001e3 37e0      	CPI  R30,LOW(0x70)
+0001e4 f431      	BRNE _0x48
+                 ;     902 //    case TWI_SRX_GEN_ACK_M_ARB_LOST: // Arbitration lost in SLA+R/W as Master; General call address has been received; ACK has been returned
+                 ;     903       TWI_statusReg.bits.genAddressCall = TRUE;
+0001e5 91e0 0322 	LDS  R30,_TWI_statusReg
+0001e7 60e4      	ORI  R30,4
+0001e8 93e0 0322 	STS  _TWI_statusReg,R30
+                 ;     904 
+                 ;     905     case TWI_SRX_ADR_ACK:            // Own SLA+W has been received ACK has been returned
+0001ea c002      	RJMP _0x49
+                 _0x48:
+0001eb 36e0      	CPI  R30,LOW(0x60)
+0001ec f441      	BRNE _0x4A
+                 _0x49:
+                 ;     906 //    case TWI_SRX_ADR_ACK_M_ARB_LOST: // Arbitration lost in SLA+R/W as Master; own SLA+W has been received; ACK has been returned    
+                 ;     907                                                         // Dont need to clear TWI_S_statusRegister.generalAddressCall due to that it is the default state.
+                 ;     908       TWI_statusReg.bits.RxDataInBuf = TRUE;      
+0001ed 91e0 0322 	LDS  R30,_TWI_statusReg
+0001ef 60e2      	ORI  R30,2
+0001f0 93e0 0322 	STS  _TWI_statusReg,R30
+                 ;     909       TWI_bufPtr   = 0;                                 // Set buffer pointer to first data location
+0001f2 24cc      	CLR  R12
+                 ;     910                                                         // Reset the TWI Interupt to wait for a new event.
+                 ;     911       TWCR = (1<<TWEN)|                                 // TWI Interface enabled
+                 ;     912              (1<<TWIE)|(1<<TWINT)|                      // Enable TWI Interupt and clear the flag to send byte
+                 ;     913              (1<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Expect ACK on this transmission
+                 ;     914              (0<<TWWC);                                 //      
+0001f3 ece5      	LDI  R30,LOW(197)
+0001f4 c01a      	RJMP _0x8B
+                 ;     915       break;
+                 ;     916 
+                 ;     917     case TWI_SRX_ADR_DATA_ACK:       // Previously addressed with own SLA+W; data has been received; ACK has been returned
+                 _0x4A:
+0001f5 38e0      	CPI  R30,LOW(0x80)
+0001f6 f011      	BREQ _0x4C
+                 ;     918     case TWI_SRX_GEN_DATA_ACK:       // Previously addressed with general call; data has been received; ACK has been returned
+0001f7 39e0      	CPI  R30,LOW(0x90)
+0001f8 f439      	BRNE _0x4D
+                 _0x4C:
+                 ;     919       TWI_buf[TWI_bufPtr++]     = TWDR;
+0001f9 d239      	RCALL SUBOPT_0x15
+0001fa 01df      	MOVW R26,R30
+0001fb b1e3      	IN   R30,0x3
+0001fc 93ec      	ST   X,R30
+                 ;     920       TWI_statusReg.bits.lastTransOK = TRUE;                 // Set flag transmission successfull.       
+0001fd d23b      	RCALL SUBOPT_0x16
+                 ;     921                                                         // Reset the TWI Interupt to wait for a new event.
+                 ;     922       TWCR = (1<<TWEN)|                                 // TWI Interface enabled
+                 ;     923              (1<<TWIE)|(1<<TWINT)|                      // Enable TWI Interupt and clear the flag to send byte
+                 ;     924              (1<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Send ACK after next reception
+                 ;     925              (0<<TWWC);                                 //  
+0001fe ece5      	LDI  R30,LOW(197)
+0001ff c00f      	RJMP _0x8B
+                 ;     926       break;
+                 ;     927 
+                 ;     928     case TWI_SRX_STOP_RESTART:       // A STOP condition or repeated START condition has been received while still addressed as Slave    
+                 _0x4D:
+000200 3ae0      	CPI  R30,LOW(0xA0)
+000201 f409      	BRNE _0x4E
+                 ;     929 	                                                       // Put TWI Transceiver in passive mode.
+                 ;     930       TWCR = (1<<TWEN)|                                 // Enable TWI-interface and release TWI pins
+                 ;     931              (0<<TWIE)|(0<<TWINT)|                      // Disable Interupt
+                 ;     932              (0<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Do not acknowledge on any new requests.
+                 ;     933              (0<<TWWC);                                 //
+000202 c00b      	RJMP _0x8C
+                 ;     934         #ifdef aaa
+                 ;     935 	PORTD.3=1; 
+                 ;     936 #endif    
+                 ;     937       break;           
+                 ;     938 
+                 ;     939     case TWI_SRX_ADR_DATA_NACK:      // Previously addressed with own SLA+W; data has been received; NOT ACK has been returned
+                 _0x4E:
+000203 38e8      	CPI  R30,LOW(0x88)
+000204 f011      	BREQ _0x50
+                 ;     940     case TWI_SRX_GEN_DATA_NACK:      // Previously addressed with general call; data has been received; NOT ACK has been returned
+000205 39e8      	CPI  R30,LOW(0x98)
+000206 f409      	BRNE _0x51
+                 _0x50:
+                 ;     941     case TWI_STX_DATA_ACK_LAST_BYTE: // Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
+000207 c002      	RJMP _0x52
+                 _0x51:
+000208 3ce8      	CPI  R30,LOW(0xC8)
+000209 f409      	BRNE _0x53
+                 _0x52:
+                 ;     942 //    case TWI_NO_STATE              // No relevant state information available; TWINT = “0”
+                 ;     943     case TWI_BUS_ERROR:         // Bus error due to an illegal START or STOP condition
+00020a c002      	RJMP _0x54
+                 _0x53:
+00020b 30e0      	CPI  R30,0
+00020c f401      	BRNE _0x56
+                 _0x54:
+                 ;     944 
+                 ;     945     default:     
+                 _0x56:
+                 ;     946       TWI_state = TWSR;                                 // Store TWI State as errormessage, operation also clears the Success bit.      
+00020d d231      	RCALL SUBOPT_0x17
+                 ;     947       TWCR = (1<<TWEN)|                                 // Enable TWI-interface and release TWI pins
+                 ;     948              (0<<TWIE)|(0<<TWINT)|                      // Disable Interupt
+                 ;     949              (0<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Do not acknowledge on any new requests.
+                 ;     950              (0<<TWWC);                                 //
+                 _0x8C:
+00020e e0e4      	LDI  R30,LOW(4)
+                 _0x8B:
+00020f bfe6      	OUT  0x36,R30
+                 ;     951 
+                 ;     952   } 
+                 ;     953 }
+000210 91e9      	LD   R30,Y+
+000211 bfef      	OUT  SREG,R30
+000212 91f9      	LD   R31,Y+
+000213 91e9      	LD   R30,Y+
+000214 91b9      	LD   R27,Y+
+000215 91a9      	LD   R26,Y+
+000216 9518      	RETI
+                 ;     954 #include "CDdef.h"  
+                 ;     955 /*****************************************************************************
+                 ;     956 *
+                 ;     957 * Atmel Corporation
+                 ;     958 *
+                 ;     959 * File              : TWI_Slave.h
+                 ;     960 * Compiler          : IAR EWAAVR 2.28a/3.10c
+                 ;     961 * Revision          : $Revision: 1.6 $
+                 ;     962 * Date              : $Date: Monday, May 24, 2004 09:32:18 UTC $
+                 ;     963 * Updated by        : $Author: ltwa $
+                 ;     964 *
+                 ;     965 * Support mail      : avr@atmel.com
+                 ;     966 *
+                 ;     967 * Supported devices : All devices with a TWI module can be used.
+                 ;     968 *                     The example is written for the ATmega16
+                 ;     969 *
+                 ;     970 * AppNote           : AVR311 - TWI Slave Implementation
+                 ;     971 *
+                 ;     972 * Description       : Header file for TWI_slave.c
+                 ;     973 *                     Include this file in the application.
+                 ;     974 *
+                 ;     975 ****************************************************************************/
+                 ;     976 #include <mega8.h> 
+                 ;     977 
+                 ;     978 /****************************************************************************
+                 ;     979   TWI Status/Control register definitions
+                 ;     980 ****************************************************************************/
+                 ;     981 
+                 ;     982 #define TWI_BUFFER_SIZE 250      // Reserves memory for the drivers transceiver buffer. 
+                 ;     983                                // Set this to the largest message size that will be sent including address byte.
+                 ;     984 
+                 ;     985 /****************************************************************************
+                 ;     986   Global definitions
+                 ;     987 ****************************************************************************/
+                 ;     988 /****************************************************************************
+                 ;     989   Global definitions
+                 ;     990 ****************************************************************************/
+                 ;     991 	typedef  struct
+                 ;     992     {
+                 ;     993         unsigned char lastTransOK:1;      
+                 ;     994         unsigned char RxDataInBuf:1;
+                 ;     995         unsigned char genAddressCall:1;                       // TRUE = General call, FALSE = TWI Address;
+                 ;     996         unsigned char unusedBits:5;
+                 ;     997     } SB;
+                 ;     998   
+                 ;     999   	typedef union 				                       // Status byte holding flags.
+                 ;    1000 	{
+                 ;    1001     	unsigned char all;
+                 ;    1002     	SB bits;
+                 ;    1003 	}  TWISR;
+                 ;    1004 
+                 ;    1005 extern  TWISR  TWI_statusReg;        
+                 ;    1006 
+                 ;    1007 
+                 ;    1008 // Для совместимости
+                 ;    1009 #define  __no_operation() #asm("nop")
+                 ;    1010 #define  __enable_interrupt() #asm("sei")
+                 ;    1011 #define  __disable_interrupt() #asm("cli")
+                 ;    1012 
+                 ;    1013 
+                 ;    1014 /****************************************************************************
+                 ;    1015   Function definitions
+                 ;    1016 ****************************************************************************/
+                 ;    1017 void TWI_Slave_Initialise( unsigned char );
+                 ;    1018 unsigned char TWI_Transceiver_Busy( void );
+                 ;    1019 unsigned char TWI_Get_State_Info( void );
+                 ;    1020 void TWI_Start_Transceiver_With_Data( unsigned char * , unsigned char );
+                 ;    1021 void TWI_Start_Transceiver( void );
+                 ;    1022 unsigned char TWI_Get_Data_From_Transceiver( unsigned char *, unsigned char );    
+                 ;    1023 
+                 ;    1024 void run_TWI_slave ( void );
+                 ;    1025 
+                 ;    1026 
+                 ;    1027 /****************************************************************************
+                 ;    1028   Bit and byte definitions
+                 ;    1029 ****************************************************************************/
+                 ;    1030 #define TWI_READ_BIT  0   // Bit position for R/W bit in "address byte".
+                 ;    1031 #define TWI_ADR_BITS  1   // Bit position for LSB of the slave address bits in the init byte.
+                 ;    1032 #define TWI_GEN_BIT   0   // Bit position for LSB of the general call bit in the init byte.
+                 ;    1033 
+                 ;    1034 #define TRUE          1
+                 ;    1035 #define FALSE         0
+                 ;    1036 
+                 ;    1037 /****************************************************************************
+                 ;    1038   TWI State codes
+                 ;    1039 ****************************************************************************/
+                 ;    1040 // General TWI Master staus codes                      
+                 ;    1041 #define TWI_START                  0x08  // START has been transmitted  
+                 ;    1042 #define TWI_REP_START              0x10  // Repeated START has been transmitted
+                 ;    1043 #define TWI_ARB_LOST               0x38  // Arbitration lost
+                 ;    1044 
+                 ;    1045 // TWI Master Transmitter staus codes                      
+                 ;    1046 #define TWI_MTX_ADR_ACK            0x18  // SLA+W has been tramsmitted and ACK received
+                 ;    1047 #define TWI_MTX_ADR_NACK           0x20  // SLA+W has been tramsmitted and NACK received 
+                 ;    1048 #define TWI_MTX_DATA_ACK           0x28  // Data byte has been tramsmitted and ACK received
+                 ;    1049 #define TWI_MTX_DATA_NACK          0x30  // Data byte has been tramsmitted and NACK received 
+                 ;    1050 
+                 ;    1051 // TWI Master Receiver staus codes  
+                 ;    1052 #define TWI_MRX_ADR_ACK            0x40  // SLA+R has been tramsmitted and ACK received
+                 ;    1053 #define TWI_MRX_ADR_NACK           0x48  // SLA+R has been tramsmitted and NACK received
+                 ;    1054 #define TWI_MRX_DATA_ACK           0x50  // Data byte has been received and ACK tramsmitted
+                 ;    1055 #define TWI_MRX_DATA_NACK          0x58  // Data byte has been received and NACK tramsmitted
+                 ;    1056 
+                 ;    1057 // TWI Slave Transmitter staus codes
+                 ;    1058 #define TWI_STX_ADR_ACK            0xA8  // Own SLA+R has been received; ACK has been returned
+                 ;    1059 #define TWI_STX_ADR_ACK_M_ARB_LOST 0xB0  // Arbitration lost in SLA+R/W as Master; own SLA+R has been received; ACK has been returned
+                 ;    1060 #define TWI_STX_DATA_ACK           0xB8  // Data byte in TWDR has been transmitted; ACK has been received
+                 ;    1061 #define TWI_STX_DATA_NACK          0xC0  // Data byte in TWDR has been transmitted; NOT ACK has been received
+                 ;    1062 #define TWI_STX_DATA_ACK_LAST_BYTE 0xC8  // Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
+                 ;    1063 
+                 ;    1064 // TWI Slave Receiver staus codes
+                 ;    1065 #define TWI_SRX_ADR_ACK            0x60  // Own SLA+W has been received ACK has been returned
+                 ;    1066 #define TWI_SRX_ADR_ACK_M_ARB_LOST 0x68  // Arbitration lost in SLA+R/W as Master; own SLA+W has been received; ACK has been returned
+                 ;    1067 #define TWI_SRX_GEN_ACK            0x70  // General call address has been received; ACK has been returned
+                 ;    1068 #define TWI_SRX_GEN_ACK_M_ARB_LOST 0x78  // Arbitration lost in SLA+R/W as Master; General call address has been received; ACK has been returned
+                 ;    1069 #define TWI_SRX_ADR_DATA_ACK       0x80  // Previously addressed with own SLA+W; data has been received; ACK has been returned
+                 ;    1070 #define TWI_SRX_ADR_DATA_NACK      0x88  // Previously addressed with own SLA+W; data has been received; NOT ACK has been returned
+                 ;    1071 #define TWI_SRX_GEN_DATA_ACK       0x90  // Previously addressed with general call; data has been received; ACK has been returned
+                 ;    1072 #define TWI_SRX_GEN_DATA_NACK      0x98  // Previously addressed with general call; data has been received; NOT ACK has been returned
+                 ;    1073 #define TWI_SRX_STOP_RESTART       0xA0  // A STOP condition or repeated START condition has been received while still addressed as Slave
+                 ;    1074 
+                 ;    1075 // TWI Miscellaneous status codes
+                 ;    1076 #define TWI_NO_STATE               0xF8  // No relevant state information available; TWINT = “0”
+                 ;    1077 #define TWI_BUS_ERROR              0x00  // Bus error due to an illegal START or STOP condition
+                 ;    1078 
+                 ;    1079 // Биты TWCR
+                 ;    1080 #define TWINT 7             //Флаг прерывания выполнения задачи
+                 ;    1081 #define TWEA  6             //Генерить ли бит ответа на вызов
+                 ;    1082 #define TWSTA 5             //Генерить СТАРТ
+                 ;    1083 #define TWSTO 4             //Генерить СТОП
+                 ;    1084 #define TWWC  3             //
+                 ;    1085 #define TWEN  2             //Разрешаем работу I2C
+                 ;    1086 #define TWIE  0             //Прерывание
+                 ;    1087 
+                 ;    1088 
+                 ;    1089 
+                 ;    1090 flash unsigned char device_name[32] =					// Имя устройства
+                 ;    1091 		"Main Program. Mega 8L ";
+                 ;    1092 eeprom unsigned long my_ser_num = 1;					// Серийный номер устройства
+                 
+                 	.ESEG
+                 _my_ser_num:
+000000 01 00     	.DW  0x1
+000002 00 00     	.DW  0x0
+                 ;    1093 const flash unsigned short my_version_high = 1;				// Версия софта 
+                 
+                 	.CSEG
+                 ;    1094 const flash unsigned short my_version_low = 2;				// Версия софта 
+                 ;    1095 //eeprom unsigned char my_addr = TO_MON;					// Мой адрес - изначально TO_MON
+                 ;    1096 
+                 ;    1097 //-----------------------------------------------------------------------------------------------------------------
+                 ;    1098 
+                 ;    1099 // ----------------------- Обработка прерывания таймера 0 (тайм-аут RS232) --------
+                 ;    1100 // Timer 0 overflow interrupt service routine
+                 ;    1101 interrupt [TIM0_OVF] void timer0_ovf_isr(void)
+                 ;    1102 {
+                 _timer0_ovf_isr:
+000217 93ea      	ST   -Y,R30
+                 ;    1103 	TCCR0=0x00;										// Останавливаем таймер
+000218 d1da      	RCALL SUBOPT_0x6
+                 ;    1104 }
+000219 91e9      	LD   R30,Y+
+00021a 9518      	RETI
+                 ;    1105 //--------------------------------------------------------------------------------------
+                 ;    1106 
+                 ;    1107 // Посылаем запрос адреса устройства
+                 ;    1108  void give_GETINFO (void)
+                 ;    1109 {
+                 _give_GETINFO:
+                 ;    1110 	// 	запрос  типа устройства
+                 ;    1111 			putchar ('q');						// заголовок
+00021b e7e1      	LDI  R30,LOW(113)
+00021c d226      	RCALL SUBOPT_0x18
+                 ;    1112 			putchar (3);							// число байт после этого
+00021d d1b6      	RCALL _putchar
+                 ;    1113 			putchar (255);		 				//  адрес (циркулярный)
+00021e efef      	LDI  R30,LOW(255)
+00021f d223      	RCALL SUBOPT_0x18
+                 ;    1114 			putchar (PT_GETINFO);		// тип пакета
+000220 d1b3      	RCALL _putchar
+                 ;    1115 			putchar ((PT_GETINFO)+(255)+3+('q'));
+000221 e7e6      	LDI  R30,LOW(374)
+000222 d223      	RCALL SUBOPT_0x19
+                 ;    1116 			
+                 ;    1117 			CountUART = 0;				// ожидаем ответный пакет  
+000223 2444      	CLR  R4
+                 ;    1118 
+                 ;    1119 }
+000224 9508      	RET
+                 ;    1120 
+                 ;    1121 // ----------------------- Обработка прерывания таймера 1 ( опрос подключения каждые 8 с) --------
+                 ;    1122 // Timer 1 overflow interrupt service routine
+                 ;    1123 interrupt [TIM1_OVF] void timer1_ovf_isr(void)
+                 ;    1124 {
+                 _timer1_ovf_isr:
+000225 d222      	RCALL SUBOPT_0x1A
+                 ;    1125 		if (! (Device_Connected) )
+000226 fc24      	SBRC R2,4
+000227 c002      	RJMP _0x57
+                 ;    1126 		{
+                 ;    1127 			lAddr = 0;						// ничего не подключено             
+000228 24aa      	CLR  R10
+                 ;    1128 			_GetLogAddr ();				// cообщаем свой логический адрес
+000229 d114      	RCALL __GetLogAddr
+                 ;    1129 		}
+                 ;    1130 
+                 ;    1131 		Device_Connected = 0;						// пора проверить устройство присутствует ли ?           
+                 _0x57:
+00022a 94e8      	CLT
+00022b f824      	BLD  R2,4
+                 ;    1132 
+                 ;    1133 		give_GETINFO();		// отправляем посылку запроса
+00022c dfee      	RCALL _give_GETINFO
+                 ;    1134 #ifdef aaa
+                 ;    1135     putchar (0xac);
+                 ;    1136 	putchar (TWDR);
+                 ;    1137 	putchar (TWSR);
+                 ;    1138 #endif    
+                 ;    1139 
+                 ;    1140 }
+00022d d228      	RCALL SUBOPT_0x1B
+00022e 9518      	RETI
+                 ;    1141 
+                 ;    1142 // отправляем ответ на GEN CALL
+                 ;    1143 void	Responce_OK (u8 Status)
+                 ;    1144 {    
+                 _Responce_OK:
+                 ;    1145 
+                 ;    1146 		Long_TX_Packet_TWI = 2;				 		// длина пакета
+00022f e0e2      	LDI  R30,LOW(2)
+000230 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1147 
+                 ;    1148 				Command_TX_Packet_TWI = Responce_GEN_CALL_internal;	
+000232 e0e4      	LDI  R30,LOW(4)
+000233 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1149 
+                 ;    1150 	// ответ не пришел
+                 ;    1151 	if ( Status == FALSE )
+000235 d22e      	RCALL SUBOPT_0x1C
+000236 f429      	BRNE _0x58
+                 ;    1152 	{
+                 ;    1153 		Packet_Lost ++;								// потеряли пакет
+000237 9493      	INC  R9
+                 ;    1154 		txBufferTWI[Start_Position_for_Reply+2] = FALSE;		  				// содержимое
+000238 e0e0      	LDI  R30,LOW(0)
+000239 93e0 025e 	__PUTB1MN _txBufferTWI,4
+                 ;    1155 	}
+                 ;    1156 	// ответ пришел
+                 ;    1157 	else
+00023b c004      	RJMP _0x59
+                 _0x58:
+                 ;    1158 		txBufferTWI[Start_Position_for_Reply+2] = rxBufferUART[1];		// содержимое
+00023c 91e0 02bf 	__GETB1MN _rxBufferUART,1
+00023e 93e0 025e 	__PUTB1MN _txBufferTWI,4
+                 ;    1159 
+                 ;    1160 		packPacket (Internal_Packet);	// даем тип ВНУТРЕННИЙ
+                 _0x59:
+000240 d1a4      	RCALL SUBOPT_0x2
+000241 dece      	RCALL _packPacket
+                 ;    1161 }
+000242 c126      	RJMP _0x85
+                 ;    1162 
+                 ;    1163 // Ждем ответа при глоб. адресации. Работает с таймером 2.
+                 ;    1164 void Wait_Responce ( unsigned char Status )
+                 ;    1165 {
+                 _Wait_Responce:
+                 ;    1166 			Count_For_Timer2 = 0;                                  
+000243 2488      	CLR  R8
+                 ;    1167 
+                 ;    1168 			TCNT2=0x00;			
+000244 d1b1      	RCALL SUBOPT_0x7
+                 ;    1169 			if ( Status == START_Timer )
+000245 81a8      	LD   R26,Y
+000246 30a1      	CPI  R26,LOW(0x1)
+000247 f421      	BRNE _0x5A
+                 ;    1170 			{
+                 ;    1171 			 	Responce_Time_Out = 0;								
+000248 94e8      	CLT
+000249 f827      	BLD  R2,7
+                 ;    1172 			 	TCCR2=0x07;       // пуск
+00024a e0e7      	LDI  R30,LOW(7)
+00024b c001      	RJMP _0x8D
+                 ;    1173 			}
+                 ;    1174 			else 		
+                 _0x5A:
+                 ;    1175 				TCCR2=0x00;       // стоп
+00024c e0e0      	LDI  R30,LOW(0)
+                 _0x8D:
+00024d bde5      	OUT  0x25,R30
+                 ;    1176 
+                 ;    1177 }
+00024e c11a      	RJMP _0x85
+                 ;    1178 // ----------------------- Обработка прерывания таймера 2 ------------------------
+                 ;    1179 // Ждем подтверждение передачи пакета кодирования ( ожидание ответа устройства - 200мс)
+                 ;    1180 // Timer 2 overflow interrupt service routine
+                 ;    1181 interrupt [TIM2_OVF] void timer2_ovf_isr(void)
+                 ;    1182 {
+                 _timer2_ovf_isr:
+00024f d1f8      	RCALL SUBOPT_0x1A
+                 ;    1183 		Count_For_Timer2 ++;
+000250 9483      	INC  R8
+                 ;    1184 
+                 ;    1185 		if (Count_For_Timer2 > 4 )
+000251 e0e4      	LDI  R30,LOW(4)
+000252 15e8      	CP   R30,R8
+000253 f420      	BRSH _0x5C
+                 ;    1186 		{
+                 ;    1187 			Responce_Time_Out = 1;				// время ожидания ответного пакета истекло
+000254 9468      	SET
+000255 f827      	BLD  R2,7
+                 ;    1188 			Wait_Responce ( STOP_Timer );				// стоп
+000256 d18e      	RCALL SUBOPT_0x2
+000257 dfeb      	RCALL _Wait_Responce
+                 ;    1189 		}                                   
+                 ;    1190 }
+                 _0x5C:
+000258 d1fd      	RCALL SUBOPT_0x1B
+000259 9518      	RETI
+                 ;    1191 
+                 ;    1192 
+                 ;    1193 //-----------------------------------------------------------------------------------------------------------------
+                 ;    1194 // Реакция на команду перейти в рабочий режим
+                 ;    1195 void ToWorkMode(void)
+                 ;    1196 {
+                 _ToWorkMode:
+                 ;    1197 	// Отправляю ответ
+                 ;    1198 	Long_TX_Packet_TWI = 1;        						// подтверждаю прием
+00025a e0e1      	LDI  R30,LOW(1)
+00025b 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1199 	txBufferTWI[Start_Position_for_Reply+1] = 1;        						// подтверждаю прием
+00025d 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1200 
+                 ;    1201 	packPacket (External_Packet);	// даем тип ВНЕШНИЙ
+00025f d18d      	RCALL SUBOPT_0x4
+000260 deaf      	RCALL _packPacket
+                 ;    1202 }
+000261 9508      	RET
+                 ;    1203 // Назначение серийного номера устройства
+                 ;    1204 static void SetSerial(void)
+                 ;    1205 {
+                 _SetSerial_G4:
+                 ;    1206 		Long_TX_Packet_TWI = 2;  			//длина
+000262 e0e2      	LDI  R30,LOW(2)
+000263 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1207 		txBufferTWI[Start_Position_for_Reply+1] = (RES_OK);		
+000265 e0e1      	LDI  R30,LOW(1)
+000266 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1208 		txBufferTWI[Start_Position_for_Reply+2] = 2+(RES_OK);          // КС
+000268 e0e3      	LDI  R30,LOW(3)
+000269 93e0 025e 	__PUTB1MN _txBufferTWI,4
+                 ;    1209 
+                 ;    1210 		packPacket (External_Packet);	// даем тип ВНЕШНИЙ
+00026b d181      	RCALL SUBOPT_0x4
+00026c dea3      	RCALL _packPacket
+                 ;    1211 }
+00026d 9508      	RET
+                 ;    1212 
+                 ;    1213 //  Назначение адреса устройства
+                 ;    1214 void Setaddr (void)
+                 ;    1215 	{
+                 _Setaddr:
+                 ;    1216 			Long_TX_Packet_TWI = 2;  			//длина
+00026e e0e2      	LDI  R30,LOW(2)
+00026f 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1217 			txBufferTWI[Start_Position_for_Reply+1] = 0;		
+000271 e0e0      	LDI  R30,LOW(0)
+000272 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1218 			txBufferTWI[Start_Position_for_Reply+2] = 2;          // КС
+000274 e0e2      	LDI  R30,LOW(2)
+000275 93e0 025e 	__PUTB1MN _txBufferTWI,4
+                 ;    1219 
+                 ;    1220 			packPacket (External_Packet);	// даем тип ВНЕШНИЙ
+000277 d175      	RCALL SUBOPT_0x4
+000278 de97      	RCALL _packPacket
+                 ;    1221 	}
+000279 9508      	RET
+                 ;    1222 
+                 ;    1223 // Перезагрузка в режим программирования
+                 ;    1224 static void ToProg(void)
+                 ;    1225 {
+                 _ToProg_G4:
+                 ;    1226 			// Отправляю ответ
+                 ;    1227 			Long_TX_Packet_TWI = 1;  			//длина
+00027a e0e1      	LDI  R30,LOW(1)
+00027b 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1228 			txBufferTWI[Start_Position_for_Reply+1] = 1;          // КС
+00027d 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1229 		
+                 ;    1230 			packPacket (External_Packet);	// даем тип ВНЕШНИЙ
+00027f d16d      	RCALL SUBOPT_0x4
+000280 de8f      	RCALL _packPacket
+                 ;    1231 			to_Reboot = 1;			//  на перезагрузку в загрузчик
+000281 9468      	SET
+000282 f826      	BLD  R2,6
+                 ;    1232 }		
+000283 9508      	RET
+                 ;    1233 
+                 ;    1234 
+                 ;    1235 // Возвращаю состояние устройства
+                 ;    1236 const char _PT_GETSTATE_[]={67,2,0,"Connected Dev.",100,"RelayTWI->UART",100,
+                 ;    1237 														"RelayUART->TWI",100,"Packet LOST   ",100,255};
+                 ;    1238 
+                 ;    1239 static void GetState(void)
+                 ;    1240 {
+                 _GetState_G4:
+                 ;    1241 	register unsigned char a=Start_Position_for_Reply;
+                 ;    1242 
+                 ;    1243 	switch (PT_GETSTATE_page)
+000284 930a      	ST   -Y,R16
+                 ;	a -> R16
+000285 e002      	LDI  R16,2
+000286 91e0 0165 	__GETB1MN _rxBufferTWI,5
+                 ;    1244 	{
+                 ;    1245 		case 0:
+000288 30e0      	CPI  R30,0
+000289 f441      	BRNE _0x60
+                 ;    1246 			memcpyf(&txBufferTWI[Start_Position_for_Reply], _PT_GETSTATE_, _PT_GETSTATE_[0]+1); // 0 пакет
+00028a e5ec
+00028b e0f2      	__POINTW1MN _txBufferTWI,2
+00028c d1da      	RCALL SUBOPT_0x1D
+00028d d1d9      	RCALL SUBOPT_0x1D
+00028e 91e4      	LPM  R30,Z
+00028f d1dc      	RCALL SUBOPT_0x1E
+000290 d212      	RCALL _memcpyf
+                 ;    1247 			break;
+000291 c041      	RJMP _0x5F
+                 ;    1248 
+                 ;    1249 		case 1:			
+                 _0x60:
+000292 30e1      	CPI  R30,LOW(0x1)
+000293 f5d1      	BRNE _0x62
+                 ;    1250 			txBufferTWI[a++] = 14;				 			// длина пакета
+000294 2fe0      	MOV  R30,R16
+000295 5f0f      	SUBI R16,-1
+000296 d168      	RCALL SUBOPT_0x9
+000297 01df      	MOVW R26,R30
+000298 e0ee      	LDI  R30,LOW(14)
+000299 d1d7      	RCALL SUBOPT_0x1F
+                 ;    1251 
+                 ;    1252 			txBufferTWI[a++] = 0;							// № микросхемы
+00029a 5f0f      	SUBI R16,-1
+00029b d163      	RCALL SUBOPT_0x9
+00029c d1d7      	RCALL SUBOPT_0x20
+00029d d1d3      	RCALL SUBOPT_0x1F
+                 ;    1253 			txBufferTWI[a++] = TWI_slaveAddress;
+00029e 5f0f      	SUBI R16,-1
+00029f d15f      	RCALL SUBOPT_0x9
+0002a0 d1d6      	RCALL SUBOPT_0x21
+                 ;    1254 			txBufferTWI[a++] = lAddr;
+0002a1 5f0f      	SUBI R16,-1
+0002a2 d15c      	RCALL SUBOPT_0x9
+0002a3 82a0      	ST   Z,R10
+                 ;    1255 
+                 ;    1256 			txBufferTWI[a++] = 1;							// № микросхемы
+0002a4 2fe0      	MOV  R30,R16
+0002a5 5f0f      	SUBI R16,-1
+0002a6 d158      	RCALL SUBOPT_0x9
+0002a7 01df      	MOVW R26,R30
+0002a8 e0e1      	LDI  R30,LOW(1)
+0002a9 d1c7      	RCALL SUBOPT_0x1F
+                 ;    1257 			txBufferTWI[a++] = TWI_slaveAddress;
+0002aa 5f0f      	SUBI R16,-1
+0002ab d153      	RCALL SUBOPT_0x9
+0002ac d1ca      	RCALL SUBOPT_0x21
+                 ;    1258 			txBufferTWI[a++] =  Relay_Pack_TWI_UART;
+0002ad 5f0f      	SUBI R16,-1
+0002ae d150      	RCALL SUBOPT_0x9
+0002af 8260      	ST   Z,R6
+                 ;    1259 
+                 ;    1260 			txBufferTWI[a++] = 2;							// № микросхемы
+0002b0 2fe0      	MOV  R30,R16
+0002b1 5f0f      	SUBI R16,-1
+0002b2 d14c      	RCALL SUBOPT_0x9
+0002b3 01df      	MOVW R26,R30
+0002b4 e0e2      	LDI  R30,LOW(2)
+0002b5 d1bb      	RCALL SUBOPT_0x1F
+                 ;    1261 			txBufferTWI[a++] = TWI_slaveAddress;
+0002b6 5f0f      	SUBI R16,-1
+0002b7 d147      	RCALL SUBOPT_0x9
+0002b8 d1be      	RCALL SUBOPT_0x21
+                 ;    1262 			txBufferTWI[a++] =  Relay_Pack_UART_TWI;
+0002b9 5f0f      	SUBI R16,-1
+0002ba d144      	RCALL SUBOPT_0x9
+0002bb 8270      	ST   Z,R7
+                 ;    1263 
+                 ;    1264 			txBufferTWI[a++] = 3;							// № микросхемы
+0002bc 2fe0      	MOV  R30,R16
+0002bd 5f0f      	SUBI R16,-1
+0002be d140      	RCALL SUBOPT_0x9
+0002bf 01df      	MOVW R26,R30
+0002c0 e0e3      	LDI  R30,LOW(3)
+0002c1 d1af      	RCALL SUBOPT_0x1F
+                 ;    1265 			txBufferTWI[a++] = TWI_slaveAddress;
+0002c2 5f0f      	SUBI R16,-1
+0002c3 d13b      	RCALL SUBOPT_0x9
+0002c4 d1b2      	RCALL SUBOPT_0x21
+                 ;    1266 			txBufferTWI[a++] =  Packet_Lost;
+0002c5 5f0f      	SUBI R16,-1
+0002c6 d138      	RCALL SUBOPT_0x9
+0002c7 8290      	ST   Z,R9
+                 ;    1267 
+                 ;    1268 			txBufferTWI[a++] = 255;
+0002c8 2fe0      	MOV  R30,R16
+0002c9 5f0f      	SUBI R16,-1
+0002ca d134      	RCALL SUBOPT_0x9
+0002cb 01df      	MOVW R26,R30
+0002cc efef      	LDI  R30,LOW(255)
+0002cd c004      	RJMP _0x8E
+                 ;    1269 			break;
+                 ;    1270 
+                 ;    1271 		default:
+                 _0x62:
+                 ;    1272 			txBufferTWI[a++] = 0;				 			// длина пакета
+0002ce 2fe0      	MOV  R30,R16
+0002cf 5f0f      	SUBI R16,-1
+0002d0 d12e      	RCALL SUBOPT_0x9
+0002d1 d1a2      	RCALL SUBOPT_0x20
+                 _0x8E:
+0002d2 93ec      	ST   X,R30
+                 ;    1273 			break;
+                 ;    1274 	} 
+                 _0x5F:
+                 ;    1275 
+                 ;    1276 	//KC
+                 ;    1277 	txBufferTWI[txBufferTWI[Start_Position_for_Reply]+2] = calc_CRC( &txBufferTWI[Start_Position_for_Reply] );
+0002d3 91e0 025c 	__GETB1MN _txBufferTWI,2
+0002d5 e0f0      	LDI  R31,0
+0002d6 5ae4
+0002d7 4ffd      	__ADDW1MN _txBufferTWI,2
+0002d8 93ff      	PUSH R31
+0002d9 93ef      	PUSH R30
+0002da e5ec
+0002db e0f2      	__POINTW1MN _txBufferTWI,2
+0002dc d126      	RCALL SUBOPT_0xA
+0002dd 91af      	POP  R26
+0002de 91bf      	POP  R27
+0002df d19a      	RCALL SUBOPT_0x22
+                 ;    1278 
+                 ;    1279 	packPacket (External_Packet);	// даем тип ВНЕШНИЙ
+0002e0 de2f      	RCALL _packPacket
+                 ;    1280 } 
+0002e1 c07d      	RJMP _0x86
+                 ;    1281 
+                 ;    1282 // Информация об устройстве:
+                 ;    1283 
+                 ;    1284 static void GetInfo(void)
+                 ;    1285 {
+                 _GetInfo_G4:
+                 ;    1286 		register unsigned char i,a=Start_Position_for_Reply;                    
+                 ;    1287 	
+                 ;    1288 		// 	заполняю буфер
+                 ;    1289 		txBufferTWI[a++] = 40+1;
+0002e2 d1fa      	RCALL __SAVELOCR2
+                 ;	i -> R16
+                 ;	a -> R17
+0002e3 e012      	LDI  R17,2
+0002e4 2fe1      	MOV  R30,R17
+0002e5 5f1f      	SUBI R17,-1
+0002e6 d118      	RCALL SUBOPT_0x9
+0002e7 01df      	MOVW R26,R30
+0002e8 e2e9      	LDI  R30,LOW(41)
+0002e9 93ec      	ST   X,R30
+                 ;    1290 	
+                 ;    1291 		for ( i = 0; i <32; i ++ )	
+0002ea e000      	LDI  R16,LOW(0)
+                 _0x64:
+0002eb 3200      	CPI  R16,32
+0002ec f458      	BRSH _0x65
+                 ;    1292 				txBufferTWI[a++] = device_name[i];	// Имя устройства
+0002ed 2fe1      	MOV  R30,R17
+0002ee 5f1f      	SUBI R17,-1
+0002ef d10f      	RCALL SUBOPT_0x9
+0002f0 01df      	MOVW R26,R30
+0002f1 d18a      	RCALL SUBOPT_0x23
+0002f2 5de6      	SUBI R30,LOW(-_device_name*2)
+0002f3 4fff      	SBCI R31,HIGH(-_device_name*2)
+0002f4 91e4      	LPM  R30,Z
+0002f5 93ec      	ST   X,R30
+                 ;    1293 
+                 ;    1294 		txBufferTWI[a++] = my_ser_num;         	 	// Серийный номер
+0002f6 5f0f      	SUBI R16,-1
+0002f7 cff3      	RJMP _0x64
+                 _0x65:
+0002f8 2fe1      	MOV  R30,R17
+0002f9 5f1f      	SUBI R17,-1
+0002fa d184      	RCALL SUBOPT_0x24
+0002fb d189      	RCALL SUBOPT_0x25
+0002fc d12a      	RCALL SUBOPT_0x13
+                 ;    1295 		txBufferTWI[a++] = my_ser_num>>8;    	  	// Серийный номер
+0002fd 2fe1      	MOV  R30,R17
+0002fe 5f1f      	SUBI R17,-1
+0002ff d17f      	RCALL SUBOPT_0x24
+000300 93ff      	PUSH R31
+000301 93ef      	PUSH R30
+000302 d187      	RCALL SUBOPT_0x26
+000303 e0e8      	LDI  R30,LOW(8)
+000304 d1ae      	RCALL __LSRD12
+000305 91af      	POP  R26
+000306 91bf      	POP  R27
+000307 d188      	RCALL SUBOPT_0x27
+                 ;    1296 
+                 ;    1297 		txBufferTWI[a++] = my_ser_num>>16;		// Серийный номер
+000308 5f1f      	SUBI R17,-1
+000309 d175      	RCALL SUBOPT_0x24
+00030a d17a      	RCALL SUBOPT_0x25
+00030b d1b3      	RCALL __LSRD16
+00030c d11a      	RCALL SUBOPT_0x13
+                 ;    1298 		txBufferTWI[a++] = my_ser_num>>24;		// Серийный номер
+00030d 2fe1      	MOV  R30,R17
+00030e 5f1f      	SUBI R17,-1
+00030f d16f      	RCALL SUBOPT_0x24
+000310 93ff      	PUSH R31
+000311 93ef      	PUSH R30
+000312 d177      	RCALL SUBOPT_0x26
+000313 e1e8      	LDI  R30,LOW(24)
+000314 d19e      	RCALL __LSRD12
+000315 91af      	POP  R26
+000316 91bf      	POP  R27
+000317 d178      	RCALL SUBOPT_0x27
+                 ;    1299 	
+                 ;    1300 		txBufferTWI[a++] =TWI_slaveAddress ;    	// Адрес устройства
+000318 5f1f      	SUBI R17,-1
+000319 d0e5      	RCALL SUBOPT_0x9
+00031a 82b0      	ST   Z,R11
+                 ;    1301         txBufferTWI[a++] =0;     							// Зарезервированный байт
+00031b 2fe1      	MOV  R30,R17
+00031c 5f1f      	SUBI R17,-1
+00031d d0e1      	RCALL SUBOPT_0x9
+00031e d155      	RCALL SUBOPT_0x20
+00031f d170      	RCALL SUBOPT_0x27
+                 ;    1302 	
+                 ;    1303 		txBufferTWI[a++] = my_version_high;			// Версия софта
+000320 5f1f      	SUBI R17,-1
+000321 d0dd      	RCALL SUBOPT_0x9
+000322 01df      	MOVW R26,R30
+000323 e4ea      	LDI  R30,LOW(_my_version_high*2)
+000324 e0f0      	LDI  R31,HIGH(_my_version_high*2)
+000325 d19e      	RCALL __GETW1PF
+000326 d169      	RCALL SUBOPT_0x27
+                 ;    1304 		txBufferTWI[a++] = my_version_low;			// Версия  софта
+000327 5f1f      	SUBI R17,-1
+000328 d0d6      	RCALL SUBOPT_0x9
+000329 01df      	MOVW R26,R30
+00032a e4ec      	LDI  R30,LOW(_my_version_low*2)
+00032b e0f0      	LDI  R31,HIGH(_my_version_low*2)
+00032c d197      	RCALL __GETW1PF
+00032d 93ec      	ST   X,R30
+                 ;    1305 		
+                 ;    1306 		//KC
+                 ;    1307 		txBufferTWI[txBufferTWI[Start_Position_for_Reply]+2] = calc_CRC( &txBufferTWI[Start_Position_for_Reply] );
+00032e 91e0 025c 	__GETB1MN _txBufferTWI,2
+000330 e0f0      	LDI  R31,0
+000331 5ae4
+000332 4ffd      	__ADDW1MN _txBufferTWI,2
+000333 93ff      	PUSH R31
+000334 93ef      	PUSH R30
+000335 e5ec
+000336 e0f2      	__POINTW1MN _txBufferTWI,2
+000337 d0cb      	RCALL SUBOPT_0xA
+000338 91af      	POP  R26
+000339 91bf      	POP  R27
+00033a d13f      	RCALL SUBOPT_0x22
+                 ;    1308 		packPacket (External_Packet);					// даем тип ВНЕШНИЙ
+00033b ddd4      	RCALL _packPacket
+                 ;    1309 }
+00033c d1a6      	RCALL __LOADLOCR2P
+00033d 9508      	RET
+                 ;    1310 
+                 ;    1311 
+                 ;    1312 // Отвечаем. Заполняем буфер на передачу
+                 ;    1313 void _GetLogAddr (void)
+                 ;    1314 {
+                 __GetLogAddr:
+                 ;    1315 
+                 ;    1316 		Long_TX_Packet_TWI = 2;				 					// длина пакета
+00033e e0e2      	LDI  R30,LOW(2)
+00033f 93e0 025c 	__PUTB1MN _txBufferTWI,2
+                 ;    1317 		txBufferTWI[Start_Position_for_Reply+1] = GetLogAddr;		 				// тип пакета
+000341 e0e1      	LDI  R30,LOW(1)
+000342 93e0 025d 	__PUTB1MN _txBufferTWI,3
+                 ;    1318 		txBufferTWI[Start_Position_for_Reply+2] = lAddr;		  						// содержимое
+000344 92a0 025e 	__PUTBMRN _txBufferTWI,4,10
+                 ;    1319 
+                 ;    1320 		packPacket (Internal_Packet);					// даем тип ВНУТРЕННИЙ
+000346 d09e      	RCALL SUBOPT_0x2
+000347 ddc8      	RCALL _packPacket
+                 ;    1321 }  
+000348 9508      	RET
+                 ;    1322 	
+                 ;    1323 // ретрансляция из TWI в UART
+                 ;    1324 void relayTWI_to_UART (void)
+                 ;    1325 {       
+                 _relayTWI_to_UART:
+                 ;    1326 		u8 a;
+                 ;    1327 		
+                 ;    1328 		if ( Device_Connected )
+000349 930a      	ST   -Y,R16
+                 ;	a -> R16
+00034a fe24      	SBRS R2,4
+00034b c013      	RJMP _0x66
+                 ;    1329 		{
+                 ;    1330 			Wait_Responce ( START_Timer );  
+00034c d0a0      	RCALL SUBOPT_0x4
+00034d def5      	RCALL _Wait_Responce
+                 ;    1331 
+                 ;    1332 			for ( a = 1;a<= Long_RX_Packet_TWI+2; a++ )	
+00034e e001      	LDI  R16,LOW(1)
+                 _0x68:
+00034f 91e0 0162 	__GETB1MN _rxBufferTWI,2
+000351 5fee      	SUBI R30,-LOW(2)
+000352 17e0      	CP   R30,R16
+000353 f038      	BRLO _0x69
+                 ;    1333 					putchar ( rxBufferTWI[a] ); 
+000354 d127      	RCALL SUBOPT_0x23
+000355 5ae0      	SUBI R30,LOW(-_rxBufferTWI)
+000356 4ffe      	SBCI R31,HIGH(-_rxBufferTWI)
+000357 81e0      	LD   R30,Z
+000358 d0ed      	RCALL SUBOPT_0x19
+                 ;    1334 
+                 ;    1335 			Relay_Pack_TWI_UART++;			//счетчик статистики
+000359 5f0f      	SUBI R16,-1
+00035a cff4      	RJMP _0x68
+                 _0x69:
+00035b 9463      	INC  R6
+                 ;    1336 			LedOn ();										// отправили пакет	
+00035c 9893      	CBI  0x12,3
+                 ;    1337 			gate_UART_to_TWI_open = TRUE;	// открываем обратную ретрансляцию		
+00035d 9468      	SET
+00035e f820      	BLD  R2,0
+                 ;    1338 		}
+                 ;    1339 
+                 ;    1340 }
+                 _0x66:
+                 _0x86:
+00035f 9109      	LD   R16,Y+
+000360 9508      	RET
+                 ;    1341 
+                 ;    1342 // Включаем-выключаем UART
+                 ;    1343 void    port_state (u8 state)
+                 ;    1344 {
+                 _port_state:
+                 ;    1345 	if (state == FALSE) 
+000361 d102      	RCALL SUBOPT_0x1C
+000362 f421      	BRNE _0x6A
+                 ;    1346 	{     
+                 ;    1347 		UCSRB=0x0;					
+000363 e0e0      	LDI  R30,LOW(0)
+000364 b9ea      	OUT  0xA,R30
+                 ;    1348 		UCSRC=0x0;
+000365 bde0      	OUT  0x20,R30
+                 ;    1349 		UBRRL=0x0;
+000366 c001      	RJMP _0x8F
+                 ;    1350 	}
+                 ;    1351 	else
+                 _0x6A:
+                 ;    1352 	{
+                 ;    1353 		UCSRB=0x98;				
+000367 d091      	RCALL SUBOPT_0x8
+                 ;    1354 		UCSRC=0x86;
+                 ;    1355 		UBRRL=0x0C;
+                 _0x8F:
+000368 b9e9      	OUT  0x9,R30
+                 ;    1356 	}
+                 ;    1357 }
+                 _0x85:
+000369 9621      	ADIW R28,1
+00036a 9508      	RET
+                 ;    1358 
+                 ;    1359 
+                 ;    1360 // Обрабатываем принятый пакет TWI
+                 ;    1361 void workINpack ( void )
+                 ;    1362 		{
+                 _workINpack:
+                 ;    1363 
+                 ;    1364 		// Обработка внутренних пакетов
+                 ;    1365 		if ( Recived_Address == Internal_Packet )		
+00036b 91e0 0163 	__GETB1MN _rxBufferTWI,3
+00036d 30e0      	CPI  R30,0
+00036e f561      	BRNE _0x6C
+                 ;    1366 		{
+                 ;    1367 				#ifdef DEBUG
+                 ;    1368 				putchar2 (0x04);
+                 ;    1369 				#endif
+                 ;    1370 			switch ( Type_RX_Packet_TWI )
+00036f 91e0 0164 	__GETB1MN _rxBufferTWI,4
+                 ;    1371 			{
+                 ;    1372 				case PT_GETINFO:			// возвращаем о себе информацию
+000371 30e3      	CPI  R30,LOW(0x3)
+000372 f411      	BRNE _0x70
+                 ;    1373 						GetInfo();
+000373 df6e      	RCALL _GetInfo_G4
+                 ;    1374 						break;                                     
+000374 c025      	RJMP _0x6F
+                 ;    1375 						
+                 ;    1376 				case PT_GETSTATE:				// возвращаем состояние
+                 _0x70:
+000375 30e1      	CPI  R30,LOW(0x1)
+000376 f411      	BRNE _0x71
+                 ;    1377 						GetState();
+000377 df0c      	RCALL _GetState_G4
+                 ;    1378 						break;
+000378 c021      	RJMP _0x6F
+                 ;    1379 
+                 ;    1380 		 		case PT_TOPROG:       			// переходим в программирование
+                 _0x71:
+000379 30e7      	CPI  R30,LOW(0x7)
+00037a f411      	BRNE _0x72
+                 ;    1381 						ToProg();
+00037b defe      	RCALL _ToProg_G4
+                 ;    1382 						break;      
+00037c c01d      	RJMP _0x6F
+                 ;    1383 
+                 ;    1384 		 		case PT_PORT_UNLOCK:      // разрешаем UART
+                 _0x72:
+00037d 3aee      	CPI  R30,LOW(0xAE)
+00037e f419      	BRNE _0x73
+                 ;    1385 						port_state(TRUE);
+00037f d06d      	RCALL SUBOPT_0x4
+000380 dfe0      	RCALL _port_state
+                 ;    1386 						break;
+000381 c018      	RJMP _0x6F
+                 ;    1387 
+                 ;    1388 		 		case PT_SCRDATA:       		// пакет внутреннего скремблера
+                 _0x73:
+000382 3ae1      	CPI  R30,LOW(0xA1)
+000383 f4b1      	BRNE _0x75
+                 ;    1389 						Recived_Address = 255;			//меняем адрес и КС
+000384 efef      	LDI  R30,LOW(255)
+000385 93e0 0163 	__PUTB1MN _rxBufferTWI,3
+                 ;    1390 						CRC_RX_Packet_TWI = calc_CRC( &Long_RX_Packet_TWI )+Heading_RX_Packet;
+000387 91e0 0162 	__GETB1MN _rxBufferTWI,2
+000389 e0f0      	LDI  R31,0
+00038a 59ee
+00038b 4ffe      	__ADDW1MN _rxBufferTWI,2
+00038c 93ff      	PUSH R31
+00038d 93ef      	PUSH R30
+00038e e6e2
+00038f e0f1      	__POINTW1MN _rxBufferTWI,2
+000390 d072      	RCALL SUBOPT_0xA
+000391 2fae      	MOV  R26,R30
+000392 91e0 0161 	__GETB1MN _rxBufferTWI,1
+000394 0fea      	ADD  R30,R26
+000395 91af      	POP  R26
+000396 91bf      	POP  R27
+000397 d06e      	RCALL SUBOPT_0xB
+                 ;    1391 
+                 ;    1392 						InternalPack = TRUE;
+000398 f825      	BLD  R2,5
+                 ;    1393 						relayTWI_to_UART ();
+000399 dfaf      	RCALL _relayTWI_to_UART
+                 ;    1394 						break;
+                 ;    1395 
+                 ;    1396 				default:
+                 _0x75:
+                 ;    1397 						break;
+                 ;    1398 
+                 ;    1399 			}
+                 _0x6F:
+                 ;    1400          }
+                 ;    1401 	    else	if( Recived_Address == TO_MON)					// обрабатываем пакет по адресу MONITOR
+00039a c013      	RJMP _0x76
+                 _0x6C:
+00039b 91e0 0163 	__GETB1MN _rxBufferTWI,3
+00039d 3fee      	CPI  R30,LOW(0xFE)
+00039e f471      	BRNE _0x77
+                 ;    1402 		{
+                 ;    1403 			switch ( Type_RX_Packet_TWI )
+00039f 91e0 0164 	__GETB1MN _rxBufferTWI,4
+                 ;    1404 			{
+                 ;    1405 		 		case PT_SETADDR:       			// переходим в программирование
+0003a1 30e4      	CPI  R30,LOW(0x4)
+0003a2 f411      	BRNE _0x7B
+                 ;    1406 						Setaddr();
+0003a3 deca      	RCALL _Setaddr
+                 ;    1407 						break;      
+0003a4 c007      	RJMP _0x7A
+                 ;    1408 
+                 ;    1409 		 		case PT_SETSERIAL:       			// переходим в программирование
+                 _0x7B:
+0003a5 30e5      	CPI  R30,LOW(0x5)
+0003a6 f411      	BRNE _0x7C
+                 ;    1410 						SetSerial();
+0003a7 deba      	RCALL _SetSerial_G4
+                 ;    1411 						break; 
+0003a8 c003      	RJMP _0x7A
+                 ;    1412 
+                 ;    1413 		 		case PT_TOWORK:       			// переходим в программирование
+                 _0x7C:
+0003a9 30eb      	CPI  R30,LOW(0xB)
+0003aa f409      	BRNE _0x7E
+                 ;    1414 						ToWorkMode();
+0003ab deae      	RCALL _ToWorkMode
+                 ;    1415 						break;
+                 ;    1416 
+                 ;    1417 
+                 ;    1418 				default: 
+                 _0x7E:
+                 ;    1419 						break;
+                 ;    1420 									     
+                 ;    1421 			}                                                                               
+                 _0x7A:
+                 ;    1422 		}
+                 ;    1423 		// иначе ретранслируем
+                 ;    1424 		// только при подключенном устройстве и разблок. порт
+                 ;    1425 		else
+0003ac c001      	RJMP _0x7F
+                 _0x77:
+                 ;    1426 		{ 													
+                 ;    1427 				relayTWI_to_UART ();
+0003ad df9b      	RCALL _relayTWI_to_UART
+                 ;    1428 		}
+                 _0x7F:
+                 _0x76:
+                 ;    1429 }	
+0003ae 9508      	RET
+                 ;    1430 
+                 ;    1431 // Обработка пакета, принятого по UART        
+                 ;    1432 // Принятый пакет упаковывается во внешний:
+                 ;    1433 //    ДЛИНА_ТИП_ПРИНЯТЫЙ ПАКЕТ_КС(включая ДЛИНА)
+                 ;    1434 
+                 ;    1435 void workUARTpack (void)
+                 ;    1436 {
+                 _workUARTpack:
+                 ;    1437 	if (! Device_Connected ) 						// получен первый пакет           
+0003af fc24      	SBRC R2,4
+0003b0 c007      	RJMP _0x80
+                 ;    1438 	{
+                 ;    1439 		lAddr = rxBufferUART [37];			// вынимаем адрес из принятого пакта             
+0003b1 90a0 02e3 	__GETBRMN 10,_rxBufferUART,37
+                 ;    1440 		_GetLogAddr ();							// cообщаем свой логический адрес
+0003b3 df8a      	RCALL __GetLogAddr
+                 ;    1441 		Device_Connected = 1;				// Устройство ответило 
+0003b4 9468      	SET
+0003b5 f824      	BLD  R2,4
+                 ;    1442 		LedOff();									// тушим индикатор проблем
+0003b6 9a93      	SBI  0x12,3
+                 ;    1443 
+                 ;    1444 	}
+                 ;    1445 	else
+0003b7 c017      	RJMP _0x81
+                 _0x80:
+                 ;    1446 	{
+                 ;    1447 			#ifdef DEBUG
+                 ;    1448 			putchar2 (0x01);
+                 ;    1449 			#endif
+                 ;    1450 
+                 ;    1451 		if (gate_UART_to_TWI_open == TRUE)
+0003b8 fe20      	SBRS R2,0
+0003b9 c015      	RJMP _0x82
+                 ;    1452 		{
+                 ;    1453 			Wait_Responce ( STOP_Timer );  	// останавливаем таймер
+0003ba d02a      	RCALL SUBOPT_0x2
+0003bb de87      	RCALL _Wait_Responce
+                 ;    1454 
+                 ;    1455 			if (InternalPack == TRUE)
+0003bc fe25      	SBRS R2,5
+0003bd c003      	RJMP _0x83
+                 ;    1456 			{
+                 ;    1457 				#ifdef DEBUG
+                 ;    1458 				putchar2 (0x02);
+                 ;    1459 				#endif
+                 ;    1460 				Responce_OK ( TRUE );					// отправляем ответ
+0003be d02e      	RCALL SUBOPT_0x4
+0003bf de6f      	RCALL _Responce_OK
+                 ;    1461 			}				
+                 ;    1462 			else
+0003c0 c00b      	RJMP _0x84
+                 _0x83:
+                 ;    1463 			{
+                 ;    1464 				#ifdef DEBUG
+                 ;    1465 				putchar2 (0x03);
+                 ;    1466 				#endif
+                 ;    1467 					memcpy(&txBufferTWI[Start_Position_for_Reply], rxBufferUART, rxBufferUART[0]+1); 	// пакет принятый
+0003c1 e5ec
+0003c2 e0f2      	__POINTW1MN _txBufferTWI,2
+0003c3 93fa      	ST   -Y,R31
+0003c4 93ea      	ST   -Y,R30
+0003c5 d022      	RCALL SUBOPT_0x3
+0003c6 91e0 02be 	LDS  R30,_rxBufferUART
+0003c8 d0a3      	RCALL SUBOPT_0x1E
+0003c9 d0c9      	RCALL _memcpy
+                 ;    1468 					packPacket (External_Packet);		// даем тип ВНЕШНИЙ
+0003ca d022      	RCALL SUBOPT_0x4
+0003cb dd44      	RCALL _packPacket
+                 ;    1469 			}
+                 _0x84:
+                 ;    1470 
+                 ;    1471 			InternalPack = FALSE;
+0003cc 94e8      	CLT
+0003cd f825      	BLD  R2,5
+                 ;    1472 			Relay_Pack_UART_TWI++;			//счетчик статистики						
+0003ce 9473      	INC  R7
+                 ;    1473 		}
+                 ;    1474 	}
+                 _0x82:
+                 _0x81:
+                 ;    1475 }	
+0003cf 9508      	RET
+                 ;    1476 	
+                 ;    1477 
+                 ;    1478 	//--------------------------------------------------------------------------------------------
+                 ;    1479 // "программный" UART
+                 ;    1480 #ifdef DEBUG
+                 ;    1481 void dtxdl(void)
+                 ;    1482 {
+                 ;    1483 	int i;
+                 ;    1484 	for (i = 0; i < 17; i ++)
+                 ;    1485 	{
+                 ;    1486 		#asm("nop")
+                 ;    1487 	}
+                 ;    1488 }
+                 ;    1489 
+                 ;    1490 void putchar2(char c)
+                 ;    1491 {
+                 ;    1492 	register unsigned char b;
+                 ;    1493 	
+                 ;    1494 	#asm("cli")
+                 ;    1495 	
+                 ;    1496 	DTXDDR = 1;
+                 ;    1497 //	DRXDDR = 0;
+                 ;    1498 	DTXPIN = 0;
+                 ;    1499 	dtxdl();
+                 ;    1500 	
+                 ;    1501 	for (b = 0; b < 8; b ++)
+                 ;    1502 	{
+                 ;    1503 		if (c & 1)
+                 ;    1504 		{
+                 ;    1505 			DTXPIN = 1;
+                 ;    1506 		}
+                 ;    1507 		else
+                 ;    1508 		{
+                 ;    1509 			DTXPIN = 0;
+                 ;    1510 		}
+                 ;    1511              
+                 ;    1512 		c >>= 1;
+                 ;    1513 		dtxdl();
+                 ;    1514 	}
+                 ;    1515 
+                 ;    1516 	DTXPIN = 1;
+                 ;    1517 	dtxdl();
+                 ;    1518 	dtxdl();
+                 ;    1519 	
+                 ;    1520 	#asm("sei")
+                 ;    1521 }
+                 ;    1522 #endif DEBUG
+                 ;    1523 	
+                 
+                 _getchar:
+0003d0 9b5f           sbis usr,rxc
+0003d1 cffe           rjmp _getchar
+0003d2 b1ec           in   r30,udr
+0003d3 9508      	RET
+                 _putchar:
+0003d4 9b5d           sbis usr,udre
+0003d5 cffe           rjmp _putchar
+0003d6 81e8           ld   r30,y
+0003d7 b9ec           out  udr,r30
+0003d8 9621      	ADIW R28,1
+0003d9 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x0:
+0003da 2de5      	MOV  R30,R5
+0003db 9453      	INC  R5
+0003dc e0f0      	LDI  R31,0
+0003dd 54e2      	SUBI R30,LOW(-_rxBufferUART)
+0003de 4ffd      	SBCI R31,HIGH(-_rxBufferUART)
+0003df 8300      	ST   Z,R16
+0003e0 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1:
+0003e1 e0e0      	LDI  R30,LOW(0)
+0003e2 93e0 025a 	STS  _txBufferTWI,R30
+0003e4 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 7 TIMES
+                 SUBOPT_0x2:
+0003e5 e0e0      	LDI  R30,LOW(0)
+0003e6 93ea      	ST   -Y,R30
+0003e7 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x3:
+0003e8 ebee      	LDI  R30,LOW(_rxBufferUART)
+0003e9 e0f2      	LDI  R31,HIGH(_rxBufferUART)
+0003ea 93fa      	ST   -Y,R31
+0003eb 93ea      	ST   -Y,R30
+0003ec 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 11 TIMES
+                 SUBOPT_0x4:
+0003ed e0e1      	LDI  R30,LOW(1)
+0003ee 93ea      	ST   -Y,R30
+0003ef 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x5:
+0003f0 dd34      	RCALL _checkCRCrx
+0003f1 30e0      	CPI  R30,0
+0003f2 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x6:
+0003f3 e0e0      	LDI  R30,LOW(0)
+0003f4 bfe3      	OUT  0x33,R30
+0003f5 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x7:
+0003f6 e0e0      	LDI  R30,LOW(0)
+0003f7 bde4      	OUT  0x24,R30
+0003f8 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x8:
+0003f9 e9e8      	LDI  R30,LOW(152)
+0003fa b9ea      	OUT  0xA,R30
+0003fb e8e6      	LDI  R30,LOW(134)
+0003fc bde0      	OUT  0x20,R30
+0003fd e0ec      	LDI  R30,LOW(12)
+0003fe 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 22 TIMES
+                 SUBOPT_0x9:
+0003ff e0f0      	LDI  R31,0
+000400 5ae6      	SUBI R30,LOW(-_txBufferTWI)
+000401 4ffd      	SBCI R31,HIGH(-_txBufferTWI)
+000402 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 4 TIMES
+                 SUBOPT_0xA:
+000403 93fa      	ST   -Y,R31
+000404 93ea      	ST   -Y,R30
+000405 ccf6      	RJMP _calc_CRC
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0xB:
+000406 93ec      	ST   X,R30
+000407 9468      	SET
+000408 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 6 TIMES
+                 SUBOPT_0xC:
+000409 dd88      	RCALL _TWI_Transceiver_Busy
+00040a 30e0      	CPI  R30,0
+00040b 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 3 TIMES
+                 SUBOPT_0xD:
+00040c 91e0 0322 	LDS  R30,_TWI_statusReg
+00040e 70e1      	ANDI R30,LOW(0x1)
+00040f 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0xE:
+000410 e6e0      	LDI  R30,LOW(_rxBufferTWI)
+000411 e0f1      	LDI  R31,HIGH(_rxBufferTWI)
+000412 93fa      	ST   -Y,R31
+000413 93ea      	ST   -Y,R30
+000414 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 3 TIMES
+                 SUBOPT_0xF:
+000415 e0e3      	LDI  R30,LOW(3)
+000416 93ea      	ST   -Y,R30
+000417 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x10:
+000418 81e9      	LDD  R30,Y+1
+000419 170e      	CP   R16,R30
+00041a 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x11:
+00041b 2fe0      	MOV  R30,R16
+00041c e0f0      	LDI  R31,0
+00041d 5ded      	SUBI R30,LOW(-_TWI_buf_G3)
+00041e 4ffc      	SBCI R31,HIGH(-_TWI_buf_G3)
+00041f 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x12:
+000420 2fe0      	MOV  R30,R16
+000421 81aa      	LDD  R26,Y+2
+000422 81bb      	LDD  R27,Y+2+1
+000423 e0f0      	LDI  R31,0
+000424 0fae      	ADD  R26,R30
+000425 1fbf      	ADC  R27,R31
+000426 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 3 TIMES
+                 SUBOPT_0x13:
+000427 01d0      	MOVW R26,R0
+000428 93ec      	ST   X,R30
+000429 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x14:
+00042a e0e0      	LDI  R30,LOW(0)
+00042b 93e0 0322 	STS  _TWI_statusReg,R30
+00042d efe8      	LDI  R30,LOW(248)
+00042e 93e0 041e 	STS  _TWI_state_G3,R30
+000430 ece5      	LDI  R30,LOW(197)
+000431 bfe6      	OUT  0x36,R30
+000432 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x15:
+000433 2dec      	MOV  R30,R12
+000434 94c3      	INC  R12
+000435 e0f0      	LDI  R31,0
+000436 5ded      	SUBI R30,LOW(-_TWI_buf_G3)
+000437 4ffc      	SBCI R31,HIGH(-_TWI_buf_G3)
+000438 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x16:
+000439 91e0 0322 	LDS  R30,_TWI_statusReg
+00043b 60e1      	ORI  R30,1
+00043c 93e0 0322 	STS  _TWI_statusReg,R30
+00043e 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x17:
+00043f b1e1      	IN   R30,0x1
+000440 93e0 041e 	STS  _TWI_state_G3,R30
+000442 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x18:
+000443 93ea      	ST   -Y,R30
+000444 df8f      	RCALL _putchar
+000445 cfcf      	RJMP SUBOPT_0xF
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x19:
+000446 93ea      	ST   -Y,R30
+000447 cf8c      	RJMP _putchar
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1A:
+000448 920a      	ST   -Y,R0
+000449 921a      	ST   -Y,R1
+00044a 92fa      	ST   -Y,R15
+00044b 936a      	ST   -Y,R22
+00044c 937a      	ST   -Y,R23
+00044d 938a      	ST   -Y,R24
+00044e 939a      	ST   -Y,R25
+00044f 93aa      	ST   -Y,R26
+000450 93ba      	ST   -Y,R27
+000451 93ea      	ST   -Y,R30
+000452 93fa      	ST   -Y,R31
+000453 b7ef      	IN   R30,SREG
+000454 93ea      	ST   -Y,R30
+000455 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1B:
+000456 91e9      	LD   R30,Y+
+000457 bfef      	OUT  SREG,R30
+000458 91f9      	LD   R31,Y+
+000459 91e9      	LD   R30,Y+
+00045a 91b9      	LD   R27,Y+
+00045b 91a9      	LD   R26,Y+
+00045c 9199      	LD   R25,Y+
+00045d 9189      	LD   R24,Y+
+00045e 9179      	LD   R23,Y+
+00045f 9169      	LD   R22,Y+
+000460 90f9      	LD   R15,Y+
+000461 9019      	LD   R1,Y+
+000462 9009      	LD   R0,Y+
+000463 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1C:
+000464 81e8      	LD   R30,Y
+000465 30e0      	CPI  R30,0
+000466 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1D:
+000467 93fa      	ST   -Y,R31
+000468 93ea      	ST   -Y,R30
+000469 e4ee      	LDI  R30,LOW(__PT_GETSTATE_*2)
+00046a e0f0      	LDI  R31,HIGH(__PT_GETSTATE_*2)
+00046b 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x1E:
+00046c 5fef      	SUBI R30,-LOW(1)
+00046d e0f0      	LDI  R31,0
+00046e 93fa      	ST   -Y,R31
+00046f 93ea      	ST   -Y,R30
+000470 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 5 TIMES
+                 SUBOPT_0x1F:
+000471 93ec      	ST   X,R30
+000472 2fe0      	MOV  R30,R16
+000473 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 3 TIMES
+                 SUBOPT_0x20:
+000474 01df      	MOVW R26,R30
+000475 e0e0      	LDI  R30,LOW(0)
+000476 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 4 TIMES
+                 SUBOPT_0x21:
+000477 82b0      	ST   Z,R11
+000478 2fe0      	MOV  R30,R16
+000479 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x22:
+00047a 93ec      	ST   X,R30
+00047b cf71      	RJMP SUBOPT_0x4
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x23:
+00047c 2fe0      	MOV  R30,R16
+00047d e0f0      	LDI  R31,0
+00047e 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 4 TIMES
+                 SUBOPT_0x24:
+00047f e5aa      	LDI  R26,LOW(_txBufferTWI)
+000480 e0b2      	LDI  R27,HIGH(_txBufferTWI)
+000481 e0f0      	LDI  R31,0
+000482 0fea      	ADD  R30,R26
+000483 1ffb      	ADC  R31,R27
+000484 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x25:
+000485 010f      	MOVW R0,R30
+000486 e0a0      	LDI  R26,LOW(_my_ser_num)
+000487 e0b0      	LDI  R27,HIGH(_my_ser_num)
+000488 d03f      	RCALL __EEPROMRDD
+000489 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 2 TIMES
+                 SUBOPT_0x26:
+00048a e0a0      	LDI  R26,LOW(_my_ser_num)
+00048b e0b0      	LDI  R27,HIGH(_my_ser_num)
+00048c d03b      	RCALL __EEPROMRDD
+00048d 01df      	MOVW R26,R30
+00048e 01cb      	MOVW R24,R22
+00048f 9508      	RET
+                 
+                 ;OPTIMIZER ADDED SUBROUTINE, CALLED 4 TIMES
+                 SUBOPT_0x27:
+000490 93ec      	ST   X,R30
+000491 2fe1      	MOV  R30,R17
+000492 9508      	RET
+                 
+                 _memcpy:
+000493 8199      	ldd  r25,y+1
+000494 8188      	ld   r24,y
+000495 9600      	adiw r24,0
+000496 f041      	breq __memcpy1
+000497 81bd      	ldd  r27,y+5
+000498 81ac      	ldd  r26,y+4
+000499 81fb      	ldd  r31,y+3
+00049a 81ea      	ldd  r30,y+2
+                 __memcpy0:
+00049b 9161      	ld   r22,z+
+00049c 936d      	st   x+,r22
+00049d 9701      	sbiw r24,1
+00049e f7e1      	brne __memcpy0
+                 __memcpy1:
+00049f 81fd      	ldd  r31,y+5
+0004a0 81ec      	ldd  r30,y+4
+0004a1 9626      	adiw r28,6
+0004a2 9508      	ret
+                 
+                 _memcpyf:
+0004a3 8199      	ldd  r25,y+1
+0004a4 8188      	ld   r24,y
+0004a5 9600      	adiw r24,0
+0004a6 f041      	breq __memcpyf1
+0004a7 81bd      	ldd  r27,y+5
+0004a8 81ac      	ldd  r26,y+4
+0004a9 81fb      	ldd  r31,y+3
+0004aa 81ea      	ldd  r30,y+2
+                 __memcpyf0:
+0004ab 9005      	lpm  r0,z+
+0004ac 920d      	st   x+,r0
+0004ad 9701      	sbiw r24,1
+0004ae f7e1      	brne __memcpyf0
+                 __memcpyf1:
+0004af 81fd      	ldd  r31,y+5
+0004b0 81ec      	ldd  r30,y+4
+0004b1 9626      	adiw r28,6
+0004b2 9508      	ret
+                 
+                 __LSRD12:
+0004b3 23ee      	TST  R30
+0004b4 2e0e      	MOV  R0,R30
+0004b5 01fd      	MOVW R30,R26
+0004b6 01bc      	MOVW R22,R24
+0004b7 f031      	BREQ __LSRD12R
+                 __LSRD12L:
+0004b8 9576      	LSR  R23
+0004b9 9567      	ROR  R22
+0004ba 95f7      	ROR  R31
+0004bb 95e7      	ROR  R30
+0004bc 940a      	DEC  R0
+0004bd f7d1      	BRNE __LSRD12L
+                 __LSRD12R:
+0004be 9508      	RET
+                 
+                 __LSRD16:
+0004bf 2fe6      	MOV  R30,R22
+0004c0 2ff7      	MOV  R31,R23
+0004c1 e060      	LDI  R22,0
+0004c2 e070      	LDI  R23,0
+0004c3 9508      	RET
+                 
+                 __GETW1PF:
+0004c4 9005      	LPM  R0,Z+
+0004c5 91f4      	LPM  R31,Z
+0004c6 2de0      	MOV  R30,R0
+0004c7 9508      	RET
+                 
+                 __EEPROMRDD:
+0004c8 9612      	ADIW R26,2
+0004c9 d003      	RCALL __EEPROMRDW
+0004ca 2f7f      	MOV  R23,R31
+0004cb 2f6e      	MOV  R22,R30
+0004cc 9712      	SBIW R26,2
+                 
+                 __EEPROMRDW:
+0004cd 9611      	ADIW R26,1
+0004ce d002      	RCALL __EEPROMRDB
+0004cf 2ffe      	MOV  R31,R30
+0004d0 9711      	SBIW R26,1
+                 
+                 __EEPROMRDB:
+0004d1 99e1      	SBIC EECR,EEWE
+0004d2 cffe      	RJMP __EEPROMRDB
+0004d3 93ff      	PUSH R31
+0004d4 b7ff      	IN   R31,SREG
+0004d5 94f8      	CLI
+0004d6 bbae      	OUT  EEARL,R26
+0004d7 bbbf      	OUT  EEARH,R27
+0004d8 9ae0      	SBI  EECR,EERE
+0004d9 b3ed      	IN   R30,EEDR
+0004da bfff      	OUT  SREG,R31
+0004db 91ff      	POP  R31
+0004dc 9508      	RET
+                 
+                 __SAVELOCR2:
+0004dd 931a      	ST   -Y,R17
+0004de 930a      	ST   -Y,R16
+0004df 9508      	RET
+                 
+                 __LOADLOCR2:
+0004e0 8119      	LDD  R17,Y+1
+0004e1 8108      	LD   R16,Y
+0004e2 9508      	RET
+                 
+                 __LOADLOCR2P:
+0004e3 9109      	LD   R16,Y+
+0004e4 9119      	LD   R17,Y+
+0004e5 9508      	RET
+                 
+                 ;END OF CODE MARKER
+                 __END_OF_CODE:
+
+
+RESOURCE USE INFORMATION
+------------------------
+
+Notice:
+The register and instruction counts are symbol table hit counts,
+and hence implicitly used resources are not counted, eg, the
+'lpm' instruction without operands implicitly uses r0 and z,
+none of which are counted.
+
+x,y,z are separate entities in the symbol table and are
+counted separately from r26..r31 here.
+
+.dseg memory usage only counts static data declared with .byte
+
+ATmega8 register use summary:
+r0 :  15 r1 :   3 r2 :  28 r3 :   0 r4 :   4 r5 :   3 r6 :   2 r7 :   2 
+r8 :   3 r9 :   2 r10:   4 r11:   4 r12:   5 r13:   0 r14:   0 r15:   2 
+r16:  59 r17:  27 r18:   0 r19:   0 r20:   0 r21:   0 r22:  12 r23:   6 
+r24:  17 r25:   6 r26:  53 r27:  30 r28:   8 r29:   1 r30: 389 r31:  75 
+x  :  23 y  : 126 z  :  23 
+Registers used: 28 out of 35 (80.0%)
+
+ATmega8 instruction use summary:
+adc   :   2 add   :   6 adiw  :  11 and   :   0 andi  :   7 asr   :   0 
+bclr  :   0 bld   :  16 brbc  :   0 brbs  :   0 brcc  :   0 brcs  :   0 
+break :   0 breq  :  14 brge  :   0 brhc  :   0 brhs  :   0 brid  :   0 
+brie  :   0 brlo  :   1 brlt  :   0 brmi  :   0 brne  :  46 brpl  :   0 
+brsh  :   4 brtc  :   0 brts  :   0 brvc  :   0 brvs  :   0 bset  :   0 
+bst   :   0 cbi   :   2 cbr   :   0 clc   :   0 clh   :   0 cli   :   2 
+cln   :   0 clr   :   8 cls   :   0 clt   :   7 clv   :   0 clz   :   0 
+com   :   0 cp    :   5 cpc   :   0 cpi   :  35 cpse  :   0 dec   :   3 
+eor   :   0 fmul  :   0 fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 
+in    :  13 inc   :   6 ld    :  45 ldd   :  33 ldi   : 134 lds   :  27 
+lpm   :  12 lsl   :   1 lsr   :   1 mov   :  33 movw  :  21 mul   :   0 
+muls  :   0 mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   4 
+out   :  54 pop   :  13 push  :  13 rcall : 192 ret   :  66 reti  :   5 
+rjmp  :  85 rol   :   0 ror   :   3 sbc   :   0 sbci  :   9 sbi   :   4 
+sbic  :   1 sbis  :   2 sbiw  :   7 sbr   :   0 sbrc  :   4 sbrs  :   8 
+sec   :   0 seh   :   0 sei   :   1 sen   :   0 ser   :   0 ses   :   0 
+set   :   7 sev   :   0 sez   :   0 sleep :   0 spm   :   0 st    :  76 
+std   :   6 sts   :  30 sub   :   0 subi  :  45 swap  :   0 tst   :   2 
+wdr   :   0 
+Instructions used: 50 out of 109 (45.9%)
+
+ATmega8 memory use summary [bytes]:
+Segment   Begin    End      Code   Data   Used    Size   Use%
+---------------------------------------------------------------
+[.cseg] 0x000000 0x0009cc   2378    130   2508    8192  30.6%
+[.dseg] 0x000060 0x00041f      0    703    703    1024  68.7%
+[.eseg] 0x000000 0x000004      0      4      4     512   0.8%
+
+Assembly complete, 0 errors, 12 warnings

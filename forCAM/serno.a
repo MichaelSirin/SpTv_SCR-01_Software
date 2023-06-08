@@ -1,0 +1,3 @@
+.equ serno=2000;1048
+.equ sernoH=$ffff
+;mac=(inversija sernoH)*32768 + (serno-1)*2

@@ -1,0 +1,129 @@
+/////////////////////////////////////////////////////////////////////////////////////////////
+// Что касается "железа" Coding Device (Mega8)
+#include "monitor.h"
+#include "CodingM8.h"        
+
+
+const   unsigned int scrambling_seed = 333;
+
+
+void Initialization_Device (void)
+{                                      
+	
+		PORTB=0x00;
+		DDRB=0x00;
+	
+		PORTC=0x07;
+		DDRC=0x00;
+	
+		PORTD=0x00;
+		DDRD=0x1C;
+	
+	
+		// External Interrupt(s) initialization
+		// INT0: Off
+		// INT1: Off
+		MCUCR=0x00;
+	
+		// USART initialization
+		// Communication Parameters: 8 Data, 1 Stop, No Parity
+		// USART Receiver: On
+		// USART Transmitter: On
+		// USART Mode: Asynchronous
+		// USART Baud rate: 38400
+		UCSRA=0x00;
+		UCSRB=0x98;
+		UCSRC=0x86;
+		UBRRH=0x00;
+		UBRRL=0x0C;
+
+
+		// Analog Comparator initialization
+		// Analog Comparator: Off
+		// Analog Comparator Input Capture by Timer/Counter 1: Off
+		ACSR=0x80;
+		SFIOR=0x00;
+
+//		pAddr = ((PINC & 0x7)+1 );			// определяем физический адрес (0-не исп. т.к. Глоб. Вызов)
+//		TWAR = (pAddr<<1)+1;					// Устанавливаем его для TWI
+
+//		while (! ping);								// ждем первый пинг 0хАА
+
+		// Инициализируем таймера 
+		// Timer/Counter 0 initialization; Clock value: 7,813 kHz;
+		TCCR0=0x00;
+		TCNT0=0x00;   
+		
+		// Timer/Counter 1 initialization
+		// Clock source: System Clock; Clock value: 7,813 kHz
+		// Mode: Normal top=FFFFh;
+		TCCR1A=0x00;
+		TCCR1B=0x85;
+		TCNT1H=0x00;
+		TCNT1L=0x00;
+		ICR1H=0x67;
+		ICR1L=0x69;
+		OCR1AH=0x00;
+		OCR1AL=0x00;
+		OCR1BH=0x00;
+		OCR1BL=0x00;
+
+		//Timer/Counter 2 initialization; Clock value: 7,813 kHz
+		// Mode: Normal top=FFh;
+		ASSR=0x00;
+		TCCR2=0x00;
+		TCNT2=0x00;
+		OCR2=0x00;     
+		
+		// Timer(s)/Counter(s) Interrupt(s) initialization
+		TIMSK=0x45;
+		
+		// Initialise TWI module for slave operation. Include address and/or enable General Call.
+		TWI_Slave_Initialise( (TWI_slaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_GEN_BIT) ); 
+
+		// Вотчдог
+		WDTCR=0x1F;
+		WDTCR=0x0F;  
+
+
+ }                                  
+
+/*
+void HardwareInit(void)
+{
+	// Настройка выводов
+	PORTC=0x07;
+	DDRC=0x00;
+
+    // USART initialization
+    // Communication Parameters: 8 Data, 1 Stop, No Parity
+    // USART Receiver: On
+    // USART Transmitter: On
+    // USART Mode: Asynchronous
+    // USART Baud rate: 38400
+    UCSRA=0x00;
+    UCSRB=0x18;
+    UCSRC=0x86;
+    UBRRH=0x00;
+    UBRRL=0x0C;
+
+
+
+	// Запрещаю компаратор
+	ACSR=0x80;
+	SFIOR=0x00;
+
+    //Настройки TWI
+    twi_init();             
+
+	// Вотчдог
+	WDTCR=0x1F;
+	WDTCR=0x0F;  
+
+} 
+
+#define USR  TWSR                   //статус порта 
+#define UDRE (1 << 5)
+#define UDR  TWDR                   //регистр с принимаемыми/передаваемыми байтами
+#define RXC  (1 << 7)
+*/
